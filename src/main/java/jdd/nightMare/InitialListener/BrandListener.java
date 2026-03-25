@@ -5,10 +5,13 @@ import jdd.nightMare.Game.PlayerSession;
 import jdd.nightMare.Shop.BrandGUI;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.TNTPrimed;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockPlaceEvent;
@@ -158,17 +161,67 @@ public class BrandListener implements Listener {
         }
     }
     @EventHandler
-    public void onDamage(EntityDamageEvent event) {
-    if (!(event.getEntity() instanceof Player player)) return;
-    PlayerSession session = gameManager.getPlayerSession(player);
-    if (session == null) return;
+    public void onDamage(EntityDamageByEntityEvent event) {
+        if (!(event.getEntity() instanceof Player victim)) return;
+        PlayerSession victimSession = gameManager.getPlayerSession(victim);
+        if (victimSession == null) return;
+            // 烙印：超载 (挨打给急迫)
+            if (victimSession.hasBrand(BrandType.OVERLOAD.id) && victimSession.isBrandReady(BrandType.OVERLOAD.id)) {
+                victimSession.setBrandCooldown(BrandType.OVERLOAD.id, BrandType.OVERLOAD.maxCooldown);
+                victim.addPotionEffect(new PotionEffect(PotionEffectType.HASTE, 100, 0)); // 5秒 急迫 I
+                victim.sendMessage("§e[烙印] 触发超载，获得急迫！");
+            }
+
+            // 烙印：神行 (挨打给速度)
+            if (victimSession.hasBrand(BrandType.WINDWALKER.id) && victimSession.isBrandReady(BrandType.WINDWALKER.id)) {
+                victimSession.setBrandCooldown(BrandType.WINDWALKER.id, BrandType.WINDWALKER.maxCooldown);
+                victim.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 60, 1)); // 3秒 速度 II
+                victim.sendMessage("§b[烙印] 触发神行，获得速度！");
+            }
+        // ==========================================
+        // 攻击触发类 (引力崩坏、刺杀)
+        // ==========================================
+        // 1. 引力崩坏 (弓箭命中)
+        if (event.getDamager() instanceof org.bukkit.entity.Arrow arrow && arrow.getShooter() instanceof Player shooter) {
+            PlayerSession shooterSession = gameManager.getPlayerSession(shooter);
+            if (shooterSession != null && shooterSession.hasBrand(BrandType.GRAVITY_COLLAPSE.id)) {
+                if (Math.random() <= 0.10) { // 10% 的概率触发
+                    victim.addPotionEffect(new PotionEffect(PotionEffectType.LEVITATION, 40, 0)); // 2秒 漂浮 I
+                    shooter.sendMessage("§d[烙印] 引力崩坏触发，敌人已升空！");
+                }
+            }
+        }
+        // 2. 刺杀 (近战跳劈)
+        else if (event.getDamager() instanceof Player attacker) {
+            PlayerSession attackerSession = gameManager.getPlayerSession(attacker);
+            if (attackerSession != null && attackerSession.hasBrand(BrandType.ASSASSINATION.id)&& attackerSession.isBrandReady(BrandType.ASSASSINATION.id)) {
+                // 判定是否为“跳劈”(暴击)：玩家不在地面，且正在下落 (FallDistance > 0)，且没在水里
+                boolean isCrit = !attacker.isOnGround() && attacker.getFallDistance() > 0.0f
+                        && !attacker.isInWater() && !attacker.hasPotionEffect(PotionEffectType.BLINDNESS);
+                if (isCrit && Math.random() <= 0.05) { // 5% 的极小概率
+                    // 设置双倍伤害
+                    event.setDamage(event.getDamage() * 2);
+                    attackerSession.setBrandCooldown(BrandType.ASSASSINATION.id, BrandType.ASSASSINATION.maxCooldown);
+                    // 炫酷的反馈特效
+                    attacker.sendMessage("§4[烙印] 致命刺杀！造成双倍暴击伤害！");
+                    attacker.getWorld().playSound(attacker.getLocation(), Sound.ENTITY_PLAYER_ATTACK_CRIT, 1.0f, 0.5f);
+                    attacker.getWorld().spawnParticle(Particle.CRIT, victim.getLocation().add(0, 1, 0), 20, 0.5, 0.5, 0.5, 0.1);
+                }
+            }
+        }
+}
+    @EventHandler
+    public void onPlayerDamage(EntityDamageEvent event) {
+        if (!(event.getEntity() instanceof Player victim)) return;
+        PlayerSession victimSession = gameManager.getPlayerSession(victim);
+        if (victimSession == null) return;
     // 9. 强行着陆 (HARD_LANDING)
-    if (event.getCause() == org.bukkit.event.entity.EntityDamageEvent.DamageCause.FALL) {
-        if (session.hasBrand(BrandType.HARD_LANDING.id) && session.isBrandReady(BrandType.HARD_LANDING.id)) {
+        if (event.getCause() == org.bukkit.event.entity.EntityDamageEvent.DamageCause.FALL) {
+            if (victimSession.hasBrand(BrandType.HARD_LANDING.id) && victimSession.isBrandReady(BrandType.HARD_LANDING.id)) {
             event.setCancelled(true); // 免疫本次摔落伤害
-            session.setBrandCooldown(BrandType.HARD_LANDING.id, BrandType.HARD_LANDING.maxCooldown);
-            player.sendMessage("§b[NightMare] 强行着陆生效！本次摔落伤害已免疫。");
-            player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_ZOMBIE_ATTACK_IRON_DOOR, 1f, 2f);
+            victimSession.setBrandCooldown(BrandType.HARD_LANDING.id, BrandType.HARD_LANDING.maxCooldown);
+            victim.sendMessage("§b[NightMare] 强行着陆生效！本次摔落伤害已免疫。");
+            victim.playSound(victim.getLocation(), org.bukkit.Sound.ENTITY_ZOMBIE_ATTACK_IRON_DOOR, 1f, 2f);
         }
     }
 }
@@ -204,7 +257,6 @@ public class BrandListener implements Listener {
     public void onPlayerDeath(PlayerDeathEvent event) {
         Player victim = event.getEntity();
         PlayerSession session = gameManager.getPlayerSession(victim);
-
         // 1. 检查死者是否拥有“腐败 V”烙印且冷却已好
         if (session != null && session.hasBrand(BrandType.CORRUPTION_5.id)
                 && session.isBrandReady(BrandType.CORRUPTION_5.id)) {
@@ -223,6 +275,33 @@ public class BrandListener implements Listener {
                 // 4. 设置冷却并给死者反馈（如果他还没点重生）
                 session.setBrandCooldown(BrandType.CORRUPTION_5.id, BrandType.CORRUPTION_5.maxCooldown);
                 victim.sendMessage("§5[NightMare] 腐败已触发！");
+            }
+        }
+        // ==========================================
+        // 烙印：同归于尽 (死亡后生成高伤害 TNT)
+        // ==========================================
+        if (session != null && session.hasBrand(BrandType.MARTYR.id) && session.isBrandReady(BrandType.MARTYR.id)) {
+            session.setBrandCooldown(BrandType.MARTYR.id, BrandType.MARTYR.maxCooldown); // 触发 60 秒冷却
+            Location loc = victim.getLocation();
+            TNTPrimed tnt = loc.getWorld().spawn(loc, TNTPrimed.class);
+            tnt.setYield(10.0F); // 原版苦力怕是 3.0，10.0 具有极大的破坏力和秒杀能力
+            tnt.setFuseTicks(30); // 引信设为 1.5 秒 (30 ticks)，防止敌人跑得太远
+
+            victim.sendMessage("§c[烙印] 你触发了同归于尽！");
+            loc.getWorld().playSound(loc, Sound.ENTITY_WITHER_SPAWN, 0.5f, 1.5f);
+        }
+        // ==========================================
+        // 烙印：战争践踏 (杀死敌人获得力量)
+        // ==========================================
+        Player killer = victim.getKiller();
+        if (killer != null) {
+            PlayerSession killerSession = gameManager.getPlayerSession(killer);
+            if (killerSession != null && killerSession.hasBrand(BrandType.WAR_STOMP.id) && killerSession.isBrandReady(BrandType.WAR_STOMP.id)) {
+                killerSession.setBrandCooldown(BrandType.WAR_STOMP.id, BrandType.WAR_STOMP.maxCooldown);
+                // 给予 5 秒的力量 I
+                killer.addPotionEffect(new PotionEffect(PotionEffectType.STRENGTH, 100, 0));
+                killer.sendMessage("§4[烙印] 触发战争践踏，获得力量增益！");
+                killer.playSound(killer.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 0.5f, 2.0f);
             }
         }
     }

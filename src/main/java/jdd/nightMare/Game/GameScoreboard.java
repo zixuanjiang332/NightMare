@@ -226,6 +226,7 @@ public class GameScoreboard {
 
     public void removeScoreboard(Player player){
         Scoreboard board = player.getScoreboard();
+        game.clearHealthModifier( player);
         board.clearSlot(DisplaySlot.SIDEBAR);
         for (Team team : board.getTeams()) {
             team.unregister();

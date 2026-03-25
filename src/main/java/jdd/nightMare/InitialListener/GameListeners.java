@@ -121,6 +121,7 @@ public class GameListeners implements Listener {
     public void onPlayerLeave(PlayerQuitEvent event) {
         event.setQuitMessage(null);
         Player player = event.getPlayer();
+        if(!gameManager.hasActiveSession(player))return;
         Game game = gameManager.getPlayerSession(player).getGame();
         if (gameManager.hasActiveSession(player) && gameManager.getPlayerSession(player).getGame().isAlive(player)) {
             gameManager.getPlayerSession(player).getGame().playerLeave(player);
@@ -159,25 +160,32 @@ public class GameListeners implements Listener {
         String title = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
                 .serialize(event.getView().title());
         if (!title.contains("商店")) return;
+
         Inventory clickedInventory = event.getClickedInventory();
         if (clickedInventory == null) return;
+
         ItemStack clicked = event.getCurrentItem();
         Player player = (Player) event.getWhoClicked();
+
         if (clickedInventory.equals(event.getView().getTopInventory())) {
             event.setCancelled(true);
             if (clicked == null || clicked.getType() == Material.AIR) return;
-            for (ShopCategory cat : ShopCategory.values()) {
-                if (clicked.getType() == cat.getIcon()) {
-                    gameManager.getShopGUI().open(player, cat);
-                    return;
+
+            // 【关键修复】只有点击了最上面的导航栏（槽位 0 到 8），才执行分类切换逻辑
+            if (event.getRawSlot() >= 0 && event.getRawSlot() <= 8) {
+                for (ShopCategory cat : ShopCategory.values()) {
+                    // 如果恰好点到了边框玻璃，这里也不会匹配上，直接略过
+                    if (clicked.getType() == cat.getIcon()) {
+                        gameManager.getShopGUI().open(player, cat);
+                        return;
+                    }
                 }
             }
             gameManager.getShopGUI().handlePurchaseLogic(player, clicked);
-        }
-        else {
+
+        } else {
             if (event.getClick().isShiftClick()) {
                 event.setCancelled(true);
-                return;
             }
         }
     }
@@ -314,6 +322,40 @@ public class GameListeners implements Listener {
             // 领完后清除记录，防止刷物品
             savedItems.remove(uuid);
         }
+    }
+    @EventHandler
+    public void onPlayerFace(PlayerRespawnEvent event) {
+        Player player = event.getPlayer();
+        // 1. 获取玩家的队伍和游戏数据
+        PlayerSession session = gameManager.getPlayerSession(player);
+        if (session == null || session.getGame() == null) return;
+        GameTeam team = session.getGame().getTeam(player);
+        if (team == null) return;
+        // 2. 获取该队伍的默认出生点 (只取 X, Y, Z 坐标)
+        // 假设你的 team 对象里存了队伍基地的坐标，比如 team.getSpawnLocation()
+        Location baseLoc = gameManager.getPlayerSession(player).getGame().getTeamSpawnLocations().get(team);
+        // 3. 假设地图的中心点（中岛）坐标是 (0, 64, 0)
+        // 你可以根据实际情况替换为 session.getGame().getCenterLocation()
+        Location centerLoc = new Location(baseLoc.getWorld(), 0, baseLoc.getY(), 0);
+        // 4. 计算从基地看向中心的 Yaw 角度
+        float lookAtCenterYaw = calculateLookAtYaw(baseLoc, centerLoc);
+        // 5. 创建最终的重生点 (保留原有的 XYZ，修改 Yaw 和 Pitch)
+        Location finalRespawnLoc = baseLoc.clone();
+        finalRespawnLoc.setYaw(lookAtCenterYaw);
+        finalRespawnLoc.setPitch(0f); // 0 表示平视前方，不低头也不抬头
+        // 6. 强制设置重生点
+        event.setRespawnLocation(finalRespawnLoc);
+    }
+    /**
+     * 万能数学公式：计算从起点看向终点的 Yaw 角度
+     */
+    private float calculateLookAtYaw(Location from, Location to) {
+        double dx = to.getX() - from.getX();
+        double dz = to.getZ() - from.getZ();
+
+        // 使用 Math.atan2 计算弧度，然后转化为角度
+        double angle = Math.atan2(-dx, dz);
+        return (float) Math.toDegrees(angle);
     }
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {

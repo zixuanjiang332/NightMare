@@ -65,6 +65,7 @@ public class Game {
     private final Set<Location> placedBlocks = ConcurrentHashMap.newKeySet();
     private final GameStageTask gameStageTask;
     private final BossManager bossManager;
+    private static final org.bukkit.NamespacedKey HEALTH_KEY = new org.bukkit.NamespacedKey("nightmare", "health_boost");
     public Game(GameConfiguration gameConfiguration, GameManager gameManager, GameMap map) {
         this.gameConfiguration = gameConfiguration;
         this.gameStageTask = new GameStageTask(this,gameManager);
@@ -91,20 +92,7 @@ public class Game {
             GameTeam team = new GameTeam(teamID[x],this);
             String teamName = teamID[x];
             Location teamSpawnLocation = map.getTeamSpawnLocations().get(x);
-            Location directTeamSpawnLocation;
-            switch (teamName.toLowerCase()) {
-                case "red":
-                    directTeamSpawnLocation= new Location(map.getBukkitWorld(), teamSpawnLocation.getX(),teamSpawnLocation.getY(),teamSpawnLocation.getZ(), -90f, 0f);
-                case "yellow":
-                    directTeamSpawnLocation= new Location(map.getBukkitWorld(), teamSpawnLocation.getX(),teamSpawnLocation.getY(),teamSpawnLocation.getZ(), 90f, 0f);
-                case "green":
-                    directTeamSpawnLocation= new Location(map.getBukkitWorld(), teamSpawnLocation.getX(),teamSpawnLocation.getY(),teamSpawnLocation.getZ(), 180f, 0f);
-                case "blue":
-                    directTeamSpawnLocation= new Location(map.getBukkitWorld(), teamSpawnLocation.getX(),teamSpawnLocation.getY(),teamSpawnLocation.getZ(), 0f, 0f);
-                default:
-                    directTeamSpawnLocation = teamSpawnLocation;
-            }
-            teamSpawnLocations.put(team, directTeamSpawnLocation);
+            teamSpawnLocations.put(team, teamSpawnLocation);
             gameTeams.add(team);
             teamAliveMap.put(team, true);
         }
@@ -128,6 +116,27 @@ public class Game {
         meta.lore(lore);
         star.setItemMeta(meta);
         return star;
+    }
+    public void clearHealthModifier(Player player) {
+        var attr = player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH);
+        if (attr == null) return;
+
+        // 1. 找出并移除带有我们专属 Key 的修饰符
+        List<org.bukkit.attribute.AttributeModifier> toRemove = new ArrayList<>();
+        for (org.bukkit.attribute.AttributeModifier m : attr.getModifiers()) {
+            if (m.getKey().equals(HEALTH_KEY)) {
+                toRemove.add(m);
+            }
+        }
+        // 如果没有找到加成，说明玩家没买过，直接返回
+        if (toRemove.isEmpty()) return;
+        // 执行移除
+        toRemove.forEach(attr::removeModifier);
+        // 2. 【关键】修剪溢出的当前血量
+        // 如果玩家目前的血量是 32，但上限被重置回了 20，我们需要把他的当前血量也扣回 20，否则会出 Bug
+        if (player.getHealth() > attr.getValue()) {
+            player.setHealth(attr.getValue());
+        }
     }
     public GameTeam getTeamByColor(String color) {
         return gameTeams.stream()
@@ -541,7 +550,7 @@ public class Game {
 
         if (before == GameState.STARTING && newState == GameState.WAITING ) {
             broadcastMessage("<gray>没有足够的玩家开始游戏");
-            startCountdown.setTime(30);
+            startCountdown.setTime(120);
         }
 
         switch (newState){
@@ -674,11 +683,7 @@ public class Game {
         return null;
     }
     public void telepotToWaitting (Player player){
-        List<Double>loca = new ArrayList<>();
-        loca.add(0.0);
-        loca.add(90.0);
-        loca.add(0.0);
-        Location location =new Location(map.getBukkitWorld(), loca.get(0), loca.get(1), loca.get(2));
+        Location location =map.getSpectatorLocation();
         player.teleport(location);
     }
 

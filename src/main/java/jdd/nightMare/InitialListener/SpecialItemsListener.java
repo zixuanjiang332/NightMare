@@ -43,11 +43,11 @@ public class SpecialItemsListener implements Listener {
     public void onUseItem(PlayerInteractEvent event) {
         Player player = event.getPlayer();
         ItemStack item = event.getItem();
+        if (gameManager.getPlayerSession( player)==null)return;
         Map<String,Integer>coolDowns = gameManager.getPlayerSession( player).getSpecialItemCooldowns();
         if (item == null) return;
         Action action = event.getAction();
         if (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK) {
-
             // --- 指南针：追踪最近的其他队伍玩家 ---
             if (item.getType() == Material.COMPASS) {
                 trackNearestEnemy(player);
@@ -283,18 +283,67 @@ public class SpecialItemsListener implements Listener {
         }
         // 搭桥蛋逻辑保持不变... (省略部分同原代码，避免过长)
         else if (event.getEntity() instanceof Egg egg && egg.getShooter() instanceof Player player) {
-            ItemStack item = player.getInventory().getItemInMainHand();
-            if (item == null || !item.hasItemMeta()) return;
-            String displayName = PlainTextComponentSerializer.plainText().serialize(item.getItemMeta().displayName());
-            if (!displayName.contains("搭桥蛋")) return;
+            // 【修复隐患 1：副手检测】玩家很可能把搭桥蛋放在副手扔出
+            ItemStack mainHand = player.getInventory().getItemInMainHand();
+            ItemStack offHand = player.getInventory().getItemInOffHand();
+
+            boolean isBridgeEgg = false;
+            if (mainHand.hasItemMeta() && PlainTextComponentSerializer.plainText().serialize(mainHand.getItemMeta().displayName()).contains("搭桥蛋")) {
+                isBridgeEgg = true;
+            } else if (offHand.hasItemMeta() && PlainTextComponentSerializer.plainText().serialize(offHand.getItemMeta().displayName()).contains("搭桥蛋")) {
+                isBridgeEgg = true;
+            }
+
+            if (!isBridgeEgg) return;
+
             Material teamWool = getPlayerTeamWool(player);
+            Location startLoc = egg.getLocation().clone(); // 记录扔出的起点
+            Game game = gameManager.getGameFromWorld(startLoc.getWorld());
+
+            // 启动动态轨迹追踪
             new BukkitRunnable() {
+                int ticks = 0;
+
                 @Override
                 public void run() {
-                    if (egg.isDead() || !egg.isValid() || egg.isOnGround()) { this.cancel(); return; }
-                    generateBridge(egg.getLocation().subtract(0, 1, 0), teamWool);
+                    // 终止条件 A：落地或撞墙
+                    if (egg.isDead() || !egg.isValid() || egg.isOnGround()) {
+                        this.cancel();
+                        return;
+                    }
+                    Location currentLoc = egg.getLocation();
+
+                    // 【修复隐患 2：距离与时间锁】限制最大飞行 9 格 (9*9=81)，或最多飞 20 tick (1秒)
+                    if (currentLoc.distanceSquared(startLoc) > 81 || ticks > 20) {
+                        egg.remove(); // 强制在半空中没收鸡蛋，掐断轨迹
+                        this.cancel();
+                        return;
+                    }
+                    // --- 切片生成逻辑：只在鸡蛋当前脚下铺 1~3 个方块 ---
+                    Vector velocity = egg.getVelocity().setY(0).normalize();
+                    if (velocity.lengthSquared() > 0) { // 防止除零异常
+                        Vector right = new Vector(-velocity.getZ(), 0, velocity.getX()).normalize();
+                        // 宽度范围 -1 到 1 (最宽 3 格)
+                        for (int w = -1; w <= 1; w++) {
+                            // 边缘破损感 (40% 概率不生成边缘)
+                            if (Math.abs(w) == 1 && Math.random() < 0.2) continue;
+
+                            // 在鸡蛋下方 2 格铺设 (减 2 是为了防止鸡蛋刚扔出去把玩家自己卡在方块里)
+                            Location blockLoc = currentLoc.clone().subtract(0, 2, 0).add(right.clone().multiply(w));
+                            Block block = blockLoc.getBlock();
+
+                            if (block.getType() == Material.AIR || block.getType().name().endsWith("_WATER")) {
+                                block.setType(teamWool);
+                                game.getPlacedBlocks().add(block.getLocation());
+                            }
+                        }
+                        // 伴随飞行的音效
+                        currentLoc.getWorld().playSound(currentLoc, Sound.BLOCK_WOOL_PLACE, 0.5f, 1.2f);
+                    }
+
+                    ticks++;
                 }
-            }.runTaskTimer(plugin, 1L, 1L);
+            }.runTaskTimer(NightMare.getInstance(), 1L, 1L); // 依然保持每 tick 执行
         }
     }
 
@@ -472,51 +521,6 @@ public class SpecialItemsListener implements Listener {
                 player.sendMessage("§e[NightMare] §f已使用回城卷轴返回基地。");
             }
         }
-    }
-    private void generateBridge(Location loc, Material woolType) {
-        Game game = gameManager.getGameFromWorld(loc.getWorld());
-        Random random = new Random();
-
-        // 1. 获取前进方向和右侧方向
-        Vector forward = loc.getDirection().setY(0).normalize();
-        Vector right = new Vector(-forward.getZ(), 0, forward.getX()).normalize();
-        // --- 修改 1：距离缩短 ---
-        int length = 8;
-        // 2. 开始向前铺设
-        for (int i = 1; i <= length; i++) {
-            Location center = loc.clone().add(forward.clone().multiply(i));
-            for (int w = -2; w <= 2; w++) {
-                if (Math.abs(w) == 2 && random.nextInt(100) > 15) continue;
-                // w = -1 或 1 时（内侧边缘），有 15% 概率缺损，产生破碎感
-                if (Math.abs(w) == 1 && random.nextInt(100) > 85) continue;
-
-                if (i >= length - 1 && Math.abs(w) >= 1 && random.nextBoolean()) continue;
-                Location blockLoc = center.clone().add(right.clone().multiply(w));
-                Block block = blockLoc.getBlock();
-                if (block.getType() == Material.AIR || block.getType().name().endsWith("_WATER")) {
-                    block.setType(woolType);
-                    game.getPlacedBlocks().add(block.getLocation());
-                }
-
-                if (w != 0 && random.nextInt(100) < 20) {
-                    Block topBlock = blockLoc.clone().add(0, 1, 0).getBlock();
-                    if (topBlock.getType() == Material.AIR) {
-                        topBlock.setType(woolType);
-                        game.getPlacedBlocks().add(topBlock.getLocation());
-                    }
-                }
-
-                if (random.nextInt(100) < 30) {
-                    Block bottomBlock = blockLoc.clone().subtract(0, 1, 0).getBlock();
-                    if (bottomBlock.getType() == Material.AIR) {
-                        bottomBlock.setType(woolType);
-                        game.getPlacedBlocks().add(bottomBlock.getLocation());
-                    }
-                }
-            }
-        }
-
-        loc.getWorld().playSound(loc, Sound.BLOCK_WOOL_PLACE, 1.0f, 1.0f);
     }
 
     private Material getPlayerTeamWool(Player player) {

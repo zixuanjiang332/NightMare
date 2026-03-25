@@ -30,6 +30,7 @@ public class ShopGUI {
     private final NamespacedKey PRICE_KEY = new NamespacedKey(NightMare.getInstance(), "shop_price");
     private final NamespacedKey CURRENCY_KEY = new NamespacedKey(NightMare.getInstance(), "shop_currency");
     private static final Material BORDER_GLASS = Material.GRAY_STAINED_GLASS_PANE;
+    private static final org.bukkit.NamespacedKey HEALTH_KEY = new org.bukkit.NamespacedKey("nightmare", "health_boost");
     public ShopGUI(GameManager gameManager){
         this.gameManager=gameManager;
     }
@@ -518,7 +519,7 @@ public class ShopGUI {
 
         inv.setItem(getSlot(4, 5), createShopItem(Material.OBSIDIAN, "黑曜石", 1, 3, Material.GOLD_INGOT));
     }
-    private static final org.bukkit.NamespacedKey HEALTH_KEY = new org.bukkit.NamespacedKey("nightmare", "health_boost");
+
 
     private double getCurrentHealthBonus(Player player) {
         var attr = player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH);
@@ -533,7 +534,6 @@ public class ShopGUI {
     private void applyHealthModifier(Player player, double amount) {
         var attr = player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH);
         if (attr == null) return;
-
         // 【关键修复：安全移除旧修饰符】
         // 收集需要移除的修饰符，避免 ConcurrentModificationException
         List<org.bukkit.attribute.AttributeModifier> toRemove = new ArrayList<>();

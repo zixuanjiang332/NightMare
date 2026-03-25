@@ -58,7 +58,7 @@ public class BossManager {
 
         // 循环生成，确保每个坐标生成一个不同类型的 Boss
         for (int i = 0; i < Math.min(types.length, spawnerLocations.size()); i++) {
-            Location loc = spawnerLocations.get(i).clone().add(0, 1, 0);
+            Location loc = spawnerLocations.get(i).clone().add(0, 0, 0);
             loc.getChunk().load();
 
             // 【修复 1】统一使用 Zombie 确保 setupBossAppearance 能正确处理
@@ -196,7 +196,7 @@ public class BossManager {
                 }
                 // 2. 逻辑分频：每 20 tick (1秒) 寻找一次最近玩家并尝试攻击
                 attackCooldown++;
-                if (attackCooldown >= 40) { // 设定 2 秒攻击一次
+                if (attackCooldown >= 80) { // 设定 2 秒攻击一次
                     Player target = getNearestEnemyPlayer(wither, 30.0); // 搜索 30 格内
                     if (target != null) {
                         launchWitherSkull(wither, target);
@@ -211,7 +211,7 @@ public class BossManager {
                 .subtract(source.getEyeLocation().toVector())
                 .normalize();
         // 如果你想让它射得更准，可以用 launchProjectile
-        source.launchProjectile(WitherSkull.class, direction.multiply(1.5));
+        source.launchProjectile(WitherSkull.class, direction.multiply(1.2));
         source.getWorld().playSound(source.getLocation(), Sound.ENTITY_WITHER_SHOOT, 1f, 1f);
     }
     private ItemStack getColoredArmor(Material material, Color color) {

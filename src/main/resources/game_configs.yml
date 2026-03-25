@@ -8,4 +8,5 @@ game-config:
     xp-per-win: 20
     map-ids:
       - testmap
+      - luori
     name: MODEL1
