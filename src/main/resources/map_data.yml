@@ -1,0 +1,38 @@
+test-map:
+  id: testmap
+  spectator-teleport-location: [0.10,87.10,0.10]
+  spawners:
+    - { type: "IRON", location: "world,-45,78,0" }
+    - { type: "IRON", location: "world,45,78,0" }
+    - { type: "IRON", location: "world,0,78,45" }
+    - { type: "IRON", location: "world,0,78,-45" }
+    - { type: "IRON", location: "world,0,78,-92" }
+    - { type: "IRON", location: "world,0,78,92" }
+    - { type: "IRON", location: "world,92,78,0" }
+    - { type: "IRON", location: "world,-92,78,0" }
+    # 4个副岛刷新点
+    - { type: "SIDE_IRON", location: "world,45,77,45" }
+    - { type: "SIDE_IRON", location: "world,-45,77,45" }
+    - { type: "SIDE_IRON", location: "world,45,77,-45" }
+    - { type: "SIDE_IRON", location: "world,-45,77,-45" }
+    # 5个金锭刷新点
+    - { type: "GOLD", location: "world,6,74,-6" }
+    - { type: "GOLD", location: "world,-6,74,6" }
+    - { type: "GOLD", location: "world,-6,74,-6" }
+    - { type: "GOLD", location: "world,6,74,6" }
+    - { type: "GOLD", location: "world,0,79,0" }
+  team-spawn-locations:
+    red: [ -4.5, 85.10, 99.5 ]
+    blue: [ 5.5, 85.10, -98.5 ]
+    yellow: [ -98.5, 85.10, -4.5 ]
+    green: [ 99.5 , 85.10, 5.5 ]
+  team-shop-locations:
+    red: [ 3.5, 83, 94.5 ]
+    yellow: [ -93.5, 83, 3.5 ]
+    blue: [ -2.5, 83, -93.5 ]
+    green: [ 94.5 , 83, -2.5 ]
+  team-bed-locations:
+    red: [ 0, 78, 85 ]
+    yellow: [ -85, 78, 0 ]
+    blue: [ 0, 78, -85 ]
+    green: [ 85 , 78, 0 ]

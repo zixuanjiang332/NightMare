@@ -1,0 +1,35 @@
+
+lobby-settings:
+  # Whether players are invulnerable while in the lobby.
+  invulnerable-in-lobby: true
+  
+  # Whether players can pick up items in the lobby.
+  can-pickup-items: false
+  
+  # Whether players can drop items in the lobby.
+  can-drop-items: false
+  
+  # Whether players can place blocks in the lobby.
+  can-place-blocks: false
+  
+  # Whether players can break blocks in the lobby.
+  can-break-blocks: false
+  
+  # Whether players can pick up experience orbs in the lobby.
+  can-pickup-exp: false
+  
+  # Whether to send a message if an action in the lobby is blocked.
+  send-action-failed-message: false
+  
+  lobby-location:
+    ==: org.bukkit.Location
+    world: world
+    x: -2.49
+    y: 65.5
+    z: 0.448
+    pitch: 0.0
+    yaw: -90.0
+
+# The block material used for cages. Must be a valid Material enum name from:
+# https://jd.papermc.io/paper/1.21.4/org/bukkit/Material.html
+cage-material: GLASS

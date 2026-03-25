@@ -1,0 +1,26 @@
+name: NightMare
+version: '1.0-SNAPSHOT'
+main: jdd.nightMare.NightMare
+api-version: '1.21'
+description: balbala
+commands:
+  sb:
+    description: 通过该指令进入游戏
+    usage: /sb join MODEL1
+  sp:
+    description: 通过该指令加入队伍
+    usage: /sb join
+  leave:
+    description: 返回大厅
+    usage: /leave
+  start:
+    description: 快捷开始
+    usage: /start
+  end:
+    description: 快捷结束
+    usage: /end
+  wait:
+    description: 延长等待时间
+    usage: /wait
+softdepend:
+  - PlaceholderAPI

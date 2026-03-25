@@ -1,0 +1,49 @@
+default:
+  display-name: "<gold>默认击杀信息"
+  message: "<red><victim> <gray>was killed by <blue><killer>"
+  material: IRON_SWORD
+
+bloodlust:
+  display-name: "<dark_red>Bloodlust"
+  message: "<dark_red><victim> <gray>was mercilessly eliminated by <blue><killer>"
+  material: DIAMOND_SWORD
+
+swift_strike:
+  display-name: "<yellow>Swift Strike"
+  message: "<yellow><victim> <gray>was struck down in a blink by <blue><killer>"
+  material: GOLD_SWORD
+
+headshot:
+  display-name: "<aqua>Headshot"
+  message: "<aqua><victim> <gray>fell to a perfect shot by <blue><killer>"
+  material: BOW
+
+combo:
+  display-name: "<green>Combo"
+  message: "<green><victim> <gray>was destroyed with a combo by <blue><killer>"
+  material: CROSSBOW
+
+surprise_attack:
+  display-name: "<dark_green>Surprise Attack"
+  message: "<dark_green><victim> <gray>was caught off guard by <blue><killer>"
+  material: TRIDENT
+
+last_stand:
+  display-name: "<gold>Last Stand"
+  message: "<gold><victim> <gray>fought bravely but lost to <blue><killer>"
+  material: NETHERITE_SWORD
+
+slay:
+  display-name: "<light_purple>Slay"
+  message: "<light_purple><victim> <gray>was slain by <blue><killer>"
+  material: STONE_SWORD
+
+vanquished:
+  display-name: "<red>Vanquished"
+  message: "<red><victim> <gray>was vanquished by <blue><killer>"
+  material: WOODEN_SWORD
+
+annihilated:
+  display-name: "<dark_red>Annihilated"
+  message: "<dark_red><victim> <gray>was annihilated by <blue><killer>"
+  material: NETHERITE_AXE

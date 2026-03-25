@@ -1,0 +1,11 @@
+game-config:
+  MODEL1:
+    ==: jdd.nightMare.Game.GameConfiguration
+    max-teams: 4
+    min-teams: 2
+    team-size: 5
+    xp-per-kill: 20
+    xp-per-win: 20
+    map-ids:
+      - testmap
+    name: MODEL1
