@@ -120,20 +120,14 @@ public class Game {
     public void clearHealthModifier(Player player) {
         var attr = player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH);
         if (attr == null) return;
-
-        // 1. 找出并移除带有我们专属 Key 的修饰符
         List<org.bukkit.attribute.AttributeModifier> toRemove = new ArrayList<>();
         for (org.bukkit.attribute.AttributeModifier m : attr.getModifiers()) {
             if (m.getKey().equals(HEALTH_KEY)) {
                 toRemove.add(m);
             }
         }
-        // 如果没有找到加成，说明玩家没买过，直接返回
         if (toRemove.isEmpty()) return;
-        // 执行移除
         toRemove.forEach(attr::removeModifier);
-        // 2. 【关键】修剪溢出的当前血量
-        // 如果玩家目前的血量是 32，但上限被重置回了 20，我们需要把他的当前血量也扣回 20，否则会出 Bug
         if (player.getHealth() > attr.getValue()) {
             player.setHealth(attr.getValue());
         }
@@ -148,15 +142,10 @@ public class Game {
         return spawners;
     }
     public void startTasks() {
-        // 1. 核心阶段管理任务 (每秒执行一次)
-        // 负责：倒计时、阶段切换(昼夜)、资源点tick、Boss生成、缩圈
         gameStageTask.runTaskTimer(NightMare.getInstance(), 0L, 20L);
-        // 2. 被动收入任务 (每2秒执行一次)
-        // 这个逻辑相对独立，可以保留，但建议增加一个“游戏是否正在运行”的判断
         passiveIncomeTask = new BukkitRunnable() {
             @Override
             public void run() {
-                // 如果阶段到了第六天（平局判定阶段），可以停止发放
                 if (gameStageTask.getCurrentPhase() == GamePhase.DAY_6) return;
 
                 ItemStack iron = new ItemStack(Material.IRON_INGOT, 1);
@@ -182,7 +171,6 @@ public class Game {
     }
     public void updateScoreboard(Player player) {
         Scoreboard scoreboard = player.getScoreboard();
-        // 1. 更新队伍状态 (✔/✘)
         String[] teamNames = {"红队", "蓝队", "黄队", "绿队"};
         NamedTextColor[] teamColors = {NamedTextColor.RED, NamedTextColor.BLUE, NamedTextColor.YELLOW, NamedTextColor.GREEN};
         for (int i = 0; i < 4; i++) {
@@ -434,6 +422,7 @@ public class Game {
                         Placeholder.unparsed("max-players", String.valueOf(maxPlayers))));
                 player.setHealth(0);
                 removeSpectator(player);
+                gamePlayers.remove(player);
             }
         }
 
@@ -543,6 +532,23 @@ public class Game {
     public GameState getGameState() {
         return gameState;
     }
+    public void setupTeamCollision(org.bukkit.entity.Player player, String teamName) {
+        // 【核心修复】遍历这局游戏里的所有玩家，同步他们的计分板认知
+        for (Player viewer : getInGamePlayers()) {
+            Scoreboard board = viewer.getScoreboard();
+            // 查找观察者 (viewer) 计分板上的对应队伍
+            Team scoreboardTeam = board.getTeam(teamName);
+            if (scoreboardTeam == null) {
+                scoreboardTeam = board.registerNewTeam(teamName);
+            }
+            // 设置碰撞规则：队友穿透，其他队伍碰撞
+            scoreboardTeam.setOption(Team.Option.COLLISION_RULE, Team.OptionStatus.FOR_OTHER_TEAMS);
+            // 关闭队友误伤
+            scoreboardTeam.setAllowFriendlyFire(false);
+            // 把目标玩家 (player) 加入到观察者 (viewer) 的计分板队伍中！
+            scoreboardTeam.addEntry(player.getName());
+        }
+    }
 
     public void setGameState(GameState newState) {
         GameState before = this.gameState;
@@ -573,10 +579,19 @@ public class Game {
                         addPlayerToTeam(player,finalTeam.getTeamName());
                         TeamJoinCommand.updatePlayerTeamDisplay(player,finalTeam.getTeamName());
                     }
+                    setupTeamCollision(player, getTeam(player).getTeamName());
                 }
                 gameTeams.forEach(team -> {if (!isTeamAlive(team)) {
                     teamAliveMap.remove(team);
-                    map.getTeamBedLocation( team.getTeamName()).getBlock().setType(Material.AIR);
+                    Block block = getMap().getTeamBedLocation(team.getTeamName()).getBlock();
+                    if (!(block.getBlockData() instanceof org.bukkit.block.data.type.Bed bedData)) {
+                        return;
+                    }
+                    Block otherPart = block.getRelative(bedData.getFacing());
+                    block.setType(Material.AIR, false);
+                    if (otherPart.getType().name().endsWith("_BED")) {
+                        otherPart.setType(Material.AIR, false);
+                    }
                     team.setBedAlive(false);
                 }});
                 getInGamePlayers().forEach(player -> {hiddenPlayers.put(player, new ArrayList<>()); gameScoreboard.registerStartedTeams(player);});

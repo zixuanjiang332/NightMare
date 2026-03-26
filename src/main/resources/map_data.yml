@@ -64,10 +64,10 @@ Luori:
       - { type: "GOLD", location: "world,9,72,8" }
       - { type: "GOLD", location: "world,0,70,0" }
   team-spawn-locations:
-      red: [ 0.5, 66.10, 102.5 ]
-      yellow: [ -101.5, 66.10, 0.5 ]
-      blue: [ 0.5, 66.10, -101.5 ]
-      green: [ 102.5 , 66.10, 0.5 ]
+    red: [ 0.5, 66.10, 102.5 ]
+    blue: [ 0.5, 66.10, -101.5 ]
+    yellow: [ -101.5, 66.10, 0.5 ]
+    green: [ 102.5 , 66.10, 0.5 ]
   team-shop-locations:
     red: [ 7.5, 66, 102.5 ]
     yellow: [ -101.5, 66, 7.5 ]

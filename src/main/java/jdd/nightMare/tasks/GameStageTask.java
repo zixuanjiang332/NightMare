@@ -130,17 +130,12 @@ public class GameStageTask extends BukkitRunnable {
     }
 
     private void sendPhaseWarning() {
-        // 如果当前是白天，则预警黑夜；反之亦然
         String nextStatus = currentPhase.isNight() ? "§e§l白天" : "§c§l黑夜";
         String title = "§6§l阶段切换预警";
         String subtitle = "§f距离 " + nextStatus + " §f降临还有 §e30 §f秒";
-
         for (Player p : game.getGamePlayers().keySet()) {
-            // 发送大标题
             p.sendTitle(title, subtitle, 10, 40, 10);
-            // 播放提示音
             p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 1.0f);
-            // 聊天栏通知
             p.sendMessage("§6[NightMare] §f准备好，" + nextStatus + " §f即将在 30 秒后开始。");
         }
     }

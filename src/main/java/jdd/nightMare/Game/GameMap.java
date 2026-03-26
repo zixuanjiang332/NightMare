@@ -43,7 +43,6 @@ public class GameMap {
                     Location loc = new Location(bukkitWorld, coords.get(0), coords.get(1), coords.get(2));
                     // 在世界中生成村民
                     Villager villager = bukkitWorld.spawn(loc, Villager.class);
-
                     // 设置村民属性 (无AI, 无敌, 静音, 不会因为玩家走远而消失)
                     villager.setAI(false);
                     villager.setInvulnerable(true);

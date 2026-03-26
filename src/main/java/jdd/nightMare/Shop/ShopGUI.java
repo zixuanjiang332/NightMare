@@ -199,14 +199,21 @@ public class ShopGUI {
         int roll = random.nextInt(100); // 0-99 的随机数
         ItemStack reward;
         String rewardName;
-        if (roll<10){
+        if (roll<5){
             reward = new ItemStack(Material.SLIME_BALL, 1);
             ItemMeta meta = reward.getItemMeta();
             meta.displayName(Component.text("§6行走平台"));
             reward.setItemMeta(meta);
             rewardName = "行走平台 x1";
         }
-        else if (roll<20){
+        else if (roll<10){
+            reward = new ItemStack(Material.FIRE_CHARGE, 1);
+            ItemMeta meta = reward.getItemMeta();
+            meta.displayName(Component.text("§6火焰弹"));
+            reward.setItemMeta(meta);
+            rewardName = "火焰弹 x1";
+        }
+        else if (roll<15){
             reward = new ItemStack(Material.POTION,1);
             PotionMeta meta = (PotionMeta) reward.getItemMeta();
             meta.addCustomEffect(new PotionEffect(PotionEffectType.REGENERATION, 600, 0, false, false),true);
@@ -214,6 +221,13 @@ public class ShopGUI {
             meta.setColor(PotionEffectType.REGENERATION.getColor());
             reward.setItemMeta( meta);
             rewardName = "生命药水 x1";
+        }
+        else if(roll<22){
+            reward = new ItemStack(Material.TRIPWIRE_HOOK, 1);
+            ItemMeta meta = reward.getItemMeta();
+            meta.displayName(Component.text("§6陷阱"));
+            reward.setItemMeta(meta);
+            rewardName = "陷阱 x1";
         }
         else if (roll<30){
             reward = new ItemStack(Material.CHORUS_FRUIT,2);

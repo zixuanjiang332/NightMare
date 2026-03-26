@@ -284,8 +284,8 @@ public class BrandListener implements Listener {
             session.setBrandCooldown(BrandType.MARTYR.id, BrandType.MARTYR.maxCooldown); // 触发 60 秒冷却
             Location loc = victim.getLocation();
             TNTPrimed tnt = loc.getWorld().spawn(loc, TNTPrimed.class);
-            tnt.setYield(10.0F); // 原版苦力怕是 3.0，10.0 具有极大的破坏力和秒杀能力
-            tnt.setFuseTicks(30); // 引信设为 1.5 秒 (30 ticks)，防止敌人跑得太远
+            tnt.setYield(5.0F);
+            tnt.setFuseTicks(40);
 
             victim.sendMessage("§c[烙印] 你触发了同归于尽！");
             loc.getWorld().playSound(loc, Sound.ENTITY_WITHER_SPAWN, 0.5f, 1.5f);

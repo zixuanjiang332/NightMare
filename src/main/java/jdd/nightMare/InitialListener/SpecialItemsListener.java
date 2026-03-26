@@ -11,7 +11,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.ProjectileLaunchEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
@@ -38,7 +40,53 @@ public class SpecialItemsListener implements Listener {
     public SpecialItemsListener(GameManager gameManager) {
         this.gameManager = gameManager;
     }
+    @EventHandler
+    public void onFireballUse(PlayerInteractEvent event) {
+        if (event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
+        ItemStack item = event.getItem();
+        if (item == null || item.getType() != Material.FIRE_CHARGE) return;
+        // 检查名字是否为火焰弹 (根据你商店设置的名字调整)
+        if (item.hasItemMeta() && item.getItemMeta().getDisplayName().contains("火焰弹")) {
+            event.setCancelled(true);
+            Player player = event.getPlayer();
+            item.setAmount(item.getAmount() - 1);
+            org.bukkit.entity.Fireball fireball = player.launchProjectile(org.bukkit.entity.Fireball.class);
+            // 设置火球属性
+            fireball.setVelocity(player.getLocation().getDirection().multiply(1.5)); // 飞行速度
+            fireball.setYield(2.5F); // 爆炸威力 (TNT是4.0，2.5刚好能炸掉一层方块并提供不错的击退)
+            fireball.setIsIncendiary(false); // 关闭产生火焰方块 (防止服务器到处都是火)
 
+            // 打上专属标记，方便后面拦截爆炸伤害
+            fireball.setMetadata("custom_fireball", new org.bukkit.metadata.FixedMetadataValue(NightMare.getInstance(), player.getUniqueId().toString()));
+
+            player.playSound(player.getLocation(), Sound.ENTITY_GHAST_SHOOT, 1.0f, 1.0f);
+        }
+    }
+    @EventHandler
+    public void onFireballExplode(EntityExplodeEvent event) {
+        // 拦截自定义火球的爆炸
+        if (event.getEntity() instanceof org.bukkit.entity.Fireball fireball && fireball.hasMetadata("custom_fireball")) {
+            Game game = gameManager.getGameFromWorld(event.getEntity().getWorld());
+            event.blockList().removeIf(block ->
+                    !game.getPlacedBlocks().contains(block.getLocation())
+            );
+        }
+    }
+
+    @EventHandler
+    public void onFireballDamage(EntityDamageByEntityEvent event) {
+        // 处理“火球跳”对自己造成的伤害
+        if (event.getDamager() instanceof org.bukkit.entity.Fireball fireball && fireball.hasMetadata("custom_fireball")) {
+            if (event.getEntity() instanceof Player victim) {
+                String shooterUUID = fireball.getMetadata("custom_fireball").get(0).asString();
+                // 如果被炸的是发射者本人 (他在尝试火球跳)
+                if (victim.getUniqueId().toString().equals(shooterUUID)) {
+                    // 将伤害大幅降低 (比如只扣 1 颗心)，但保留原版的爆炸击退力
+                    event.setDamage(2.0);
+                }
+            }
+        }
+    }
     @EventHandler
     public void onUseItem(PlayerInteractEvent event) {
         Player player = event.getPlayer();
@@ -144,18 +192,66 @@ public class SpecialItemsListener implements Listener {
                 scrollToRefund.setAmount(1);
                 consumeItem(player);
                 startRecallTask(player, scrollToRefund,coolDowns);
+            }else if (item.getType() == Material.TRIPWIRE_HOOK && item.hasItemMeta() && item.getItemMeta().getDisplayName().contains("陷阱")) {
+                event.setCancelled(true);
+                // 部署位置：玩家当前脚下
+                Location trapLoc = player.getLocation();
+                // 消耗物品
+                item.setAmount(item.getAmount() - 1);
+                // 启动陷阱雷达
+                deployTrap(player, trapLoc);
+                player.playSound(trapLoc, Sound.BLOCK_PISTON_EXTEND, 1f, 2f);
             }
         }
     }
-    private void startRecallTask(Player player, ItemStack refundItem,Map<String,Integer>coolDowns) {
-        // 打上施法标记
-        player.setMetadata("RECALLING", new FixedMetadataValue(plugin, true));
-        // 记录初始坐标，用于比对是否移动
-        final Location startLoc = player.getLocation().clone();
+    private boolean isTeammate(Player p1, Player p2) {
+        PlayerSession s1 = gameManager.getPlayerSession(p1);
+        PlayerSession s2 = gameManager.getPlayerSession(p2);
+        // 如果任何一方不在游戏会话中，视为非队友（或者为了安全视为队友，取决于你的逻辑）
+        if (s1 == null || s2 == null || s1.getGame() == null || s2.getGame() == null) return false;
+        // 获取各自的队伍
+        var team1 = s1.getGame().getTeam(p1);
+        var team2 = s2.getGame().getTeam(p2);
+        // 判定队伍是否相同
+        return team1 != null && team1.equals(team2);
+    }
+    private void deployTrap(Player owner, Location trapLoc) {
+        new org.bukkit.scheduler.BukkitRunnable() {
+            int ticksLived = 0; // 记录陷阱存在的时间
 
+            @Override
+            public void run() {
+                ticksLived += 10;
+                // 如果陷阱的主人离线了，或者陷阱存在超过了 10 分钟 (12000 ticks)，自动销毁
+                if (!owner.isOnline() || ticksLived > 12000) {
+                    this.cancel();
+                    return;
+                }
+
+                // 扫描陷阱半径 4 格内的实体
+                for (org.bukkit.entity.Entity entity : trapLoc.getWorld().getNearbyEntities(trapLoc, 4, 4, 4)) {
+                    if (entity instanceof Player enemy && !enemy.isDead()) {
+                        PlayerSession session = gameManager.getPlayerSession(enemy);
+                        boolean isEnemy = !isTeammate(owner, enemy);
+                        if (isEnemy && enemy.getGameMode() == GameMode.SURVIVAL) {
+                            enemy.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 60, 0));
+                            enemy.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 60, 1));
+                            trapLoc.getWorld().playSound(trapLoc, Sound.ENTITY_ELDER_GUARDIAN_CURSE, 1f, 1f);
+                            owner.sendTitle("§c§l陷阱被触发！", "§f" + enemy.getName() + " §7踩中了你的陷阱！", 10, 60, 10);
+                            owner.playSound(owner.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 2f);
+                            this.cancel();
+                            return;
+                        }
+                    }
+                }
+            }
+        }.runTaskTimer(NightMare.getInstance(), 0L, 10L); // 每 10 tick (0.5秒) 扫描一次周围，极其轻量
+    }
+    private void startRecallTask(Player player, ItemStack refundItem,Map<String,Integer>coolDowns) {
+        player.setMetadata("RECALLING", new FixedMetadataValue(plugin, true));
+        final Location startLoc = player.getLocation().clone();
         new BukkitRunnable() {
             int timeLeft = 5;
-
             @Override
             public void run() {
                 // 1. 玩家离线或死亡，直接取消任务并清理标记
@@ -172,7 +268,6 @@ public class SpecialItemsListener implements Listener {
                     coolDowns.put("回城卷轴", 0);
                     return;
                 }
-
                 // 3. 检测玩家是否移动
                 // 使用 distanceSquared 比较，允许原地转头(Yaw/Pitch 变化)，但不能走路
                 Location currentLoc = player.getLocation();
@@ -199,10 +294,6 @@ public class SpecialItemsListener implements Listener {
             }
         }.runTaskTimer(plugin, 0L, 20L); // 0延迟，每20 tick(1秒) 执行一次
     }
-
-    /**
-     * 打断回城并退还物品
-     */
     private void interruptRecall(Player player, ItemStack refundItem, String reason) {
         player.sendMessage(reason);
         player.playSound(player.getLocation(), Sound.BLOCK_GLASS_BREAK, 1f, 1f);

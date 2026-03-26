@@ -49,7 +49,7 @@ public class BossDeathListener implements Listener {
         // 2. 清除僵尸原本的掉落物（如腐肉）
         event.getDrops().clear();
         // 3. 【完善】 生成符合要求的随机附魔书
-        for (int i=0;i<random.nextInt(3)+1;i++){
+        for (int i=0;i<random.nextInt(1)+2;i++){
             event.getDrops().add(generateSpecificRandomBook(level));
         }
         // 提示 Boss 死亡
@@ -102,11 +102,8 @@ public class BossDeathListener implements Listener {
         if (session != null) {
             // 1. 正常给予原版药水效果
             player.addPotionEffect(new PotionEffect(type, durationTicks, amplifier));
-
             // 2. 在 Session 中记录过期时间戳，用于死亡重生后的比对
             session.trackBossBuff(type, amplifier, durationTicks);
-
-            player.sendMessage("§6[战利品] §f你获得了暂时的力量，请珍惜时间！");
         }
     }
     @EventHandler
@@ -183,7 +180,7 @@ public class BossDeathListener implements Listener {
                 Enchantment.SHARPNESS,       // 锋利
                 Enchantment.EFFICIENCY,      // 效率
                 Enchantment.PROTECTION,      // 保护
-                Enchantment.PROJECTILE_PROTECTION, // 爆炸保护
+                Enchantment.PROJECTILE_PROTECTION,
                 Enchantment.POWER,           // 力量
                 Enchantment.FIRE_ASPECT,     // 火焰附加
                 Enchantment.SWEEPING_EDGE    // 横扫之刃
@@ -191,12 +188,10 @@ public class BossDeathListener implements Listener {
 
         // 2. 随机选择一个附魔
         Enchantment selected = pool.get(random.nextInt(pool.size()));
-
         // 3. 【完善】 设定附魔等级：
         // 1级Boss掉落 I-II 级书； 2级Boss掉落 III-IV 级书。 (5级太强，平衡一下)
         int minLvl = (bossLevel == 1) ? 1 : 3;
         int maxLvl = (bossLevel == 1) ? 2 : 4;
-
         // 针对最高只有2级的附魔(如火焰附加)做特殊处理
         int enchantLevel;
         if (selected.getMaxLevel() < maxLvl) {
@@ -205,7 +200,9 @@ public class BossDeathListener implements Listener {
             // 生成 minLvl 到 maxLvl 之间的随机整数
             enchantLevel = random.nextInt((maxLvl - minLvl) + 1) + minLvl;
         }
-
+        if(selected == Enchantment.POWER){
+            enchantLevel = random.nextInt(1) + 1;
+        }
         meta.addStoredEnchant(selected, enchantLevel, true);
         book.setItemMeta(meta);
         return book;
