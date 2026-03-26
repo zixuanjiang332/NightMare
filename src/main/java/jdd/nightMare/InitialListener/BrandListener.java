@@ -45,7 +45,6 @@ public class BrandListener implements Listener {
         // 判定队伍是否相同
         return team1 != null && team1.equals(team2);
     }
-
     // 监听攻击事件 (自适应、腐败、枷锁、钢铁之心)
     @EventHandler
     public void onCombat(EntityDamageByEntityEvent event) {

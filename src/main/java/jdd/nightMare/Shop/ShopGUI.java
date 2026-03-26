@@ -222,55 +222,55 @@ public class ShopGUI {
             reward.setItemMeta( meta);
             rewardName = "生命药水 x1";
         }
-        else if(roll<22){
+        else if(roll<21){
             reward = new ItemStack(Material.STRING, 1);
             ItemMeta meta = reward.getItemMeta();
             meta.displayName(Component.text("§6陷阱"));
             reward.setItemMeta(meta);
             rewardName = "陷阱 x1";
         }
-        else if (roll<30){
+        else if (roll<28){
             reward = new ItemStack(Material.CHORUS_FRUIT,2);
             rewardName = "紫菘果 x2";
         }
-        else if (roll<40){
+        else if (roll<42){
             reward = new ItemStack(Material.GUNPOWDER, 1);
             ItemMeta meta = reward.getItemMeta();
             meta.displayName(Component.text("§6回城卷轴"));
             reward.setItemMeta(meta);
             rewardName = "回城卷轴x1";
         }
-        else if (roll<50){
+        else if (roll<54){
             reward = new ItemStack(Material.EGG, 1);
             ItemMeta meta = reward.getItemMeta();
             meta.displayName(Component.text("§6搭桥蛋"));
             reward.setItemMeta(meta);
             rewardName = "搭桥蛋 x1";
         }
-        else if(roll<60){
+        else if(roll<64){
             reward = new ItemStack(Material.SHULKER_SHELL, 1);
             ItemMeta meta = reward.getItemMeta();
             meta.displayName(Component.text("§6蹦床"));
             reward.setItemMeta(meta);
             rewardName = "蹦床 x1";
         }
-        else if (roll<70){
+        else if (roll<72){
             reward = new ItemStack(Material.FEATHER, 1);
             ItemMeta meta = reward.getItemMeta();
             meta.displayName(Component.text("§6降落伞"));
             reward.setItemMeta(meta);
             rewardName = "降落伞 x1";
         }
-       else if (roll < 75) { // 40% 概率
+       else if (roll < 80) { // 40% 概率
             reward = new ItemStack(Material.TNT, 1);
             rewardName = "TNT x1";
-        } else if (roll < 80) { // 30% 概率
+        } else if (roll < 85) { // 30% 概率
             reward = new ItemStack(Material.ENDER_PEARL, 1);
             rewardName = "末影珍珠 x1";
-        } else if (roll < 85) { // 15% 概率
+        } else if (roll < 90) { // 15% 概率
             reward = new ItemStack(Material.GOLDEN_APPLE, 1);
             rewardName = "金苹果 x1";
-        } else if (roll < 95) { // 10% 概率
+        } else if (roll < 97) { // 10% 概率
             reward = new ItemStack(Material.BLAZE_ROD, 1);
             ItemMeta meta = reward.getItemMeta();
             meta.displayName(Component.text("§6自救平台"));

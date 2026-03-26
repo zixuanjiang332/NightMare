@@ -53,7 +53,7 @@ public class SpecialItemsListener implements Listener {
             org.bukkit.entity.Fireball fireball = player.launchProjectile(org.bukkit.entity.Fireball.class);
             // 设置火球属性
             fireball.setVelocity(player.getLocation().getDirection().multiply(1.5)); // 飞行速度
-            fireball.setYield(2.5F); // 爆炸威力 (TNT是4.0，2.5刚好能炸掉一层方块并提供不错的击退)
+            fireball.setYield(2F); // 爆炸威力 (TNT是4.0，2.5刚好能炸掉一层方块并提供不错的击退)
             fireball.setIsIncendiary(false); // 关闭产生火焰方块 (防止服务器到处都是火)
 
             // 打上专属标记，方便后面拦截爆炸伤害
@@ -469,8 +469,8 @@ public class SpecialItemsListener implements Listener {
                 // 只有生存模式的敌人踩上去才会触发
                 if (isEnemy && player.getGameMode() == GameMode.SURVIVAL) {
                     // 1. 给敌人施加负面效果
-                    player.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 60, 0));
-                    player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 60, 1));
+                    player.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 80, 0));
+                    player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 80, 1));
                     trapLoc.getWorld().playSound(trapLoc, Sound.ENTITY_ELDER_GUARDIAN_CURSE, 1f, 1f);
                     // 2. 通知主人
                     if (owner != null && owner.isOnline()) {
