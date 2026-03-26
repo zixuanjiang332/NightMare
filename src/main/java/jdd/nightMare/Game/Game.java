@@ -532,23 +532,6 @@ public class Game {
     public GameState getGameState() {
         return gameState;
     }
-    public void setupTeamCollision(org.bukkit.entity.Player player, String teamName) {
-        // 【核心修复】遍历这局游戏里的所有玩家，同步他们的计分板认知
-        for (Player viewer : getInGamePlayers()) {
-            Scoreboard board = viewer.getScoreboard();
-            // 查找观察者 (viewer) 计分板上的对应队伍
-            Team scoreboardTeam = board.getTeam(teamName);
-            if (scoreboardTeam == null) {
-                scoreboardTeam = board.registerNewTeam(teamName);
-            }
-            // 设置碰撞规则：队友穿透，其他队伍碰撞
-            scoreboardTeam.setOption(Team.Option.COLLISION_RULE, Team.OptionStatus.FOR_OTHER_TEAMS);
-            // 关闭队友误伤
-            scoreboardTeam.setAllowFriendlyFire(false);
-            // 把目标玩家 (player) 加入到观察者 (viewer) 的计分板队伍中！
-            scoreboardTeam.addEntry(player.getName());
-        }
-    }
 
     public void setGameState(GameState newState) {
         GameState before = this.gameState;
@@ -579,7 +562,7 @@ public class Game {
                         addPlayerToTeam(player,finalTeam.getTeamName());
                         TeamJoinCommand.updatePlayerTeamDisplay(player,finalTeam.getTeamName());
                     }
-                    setupTeamCollision(player, getTeam(player).getTeamName());
+
                 }
                 gameTeams.forEach(team -> {if (!isTeamAlive(team)) {
                     teamAliveMap.remove(team);

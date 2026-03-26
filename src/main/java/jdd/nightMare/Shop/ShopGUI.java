@@ -223,7 +223,7 @@ public class ShopGUI {
             rewardName = "生命药水 x1";
         }
         else if(roll<22){
-            reward = new ItemStack(Material.TRIPWIRE_HOOK, 1);
+            reward = new ItemStack(Material.STRING, 1);
             ItemMeta meta = reward.getItemMeta();
             meta.displayName(Component.text("§6陷阱"));
             reward.setItemMeta(meta);

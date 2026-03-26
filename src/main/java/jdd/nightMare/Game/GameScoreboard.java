@@ -48,6 +48,8 @@ public class GameScoreboard {
             };
             team.setColor(color);
             team.setPrefix(color.toString() + "[" + teamName.toUpperCase() + "] ");
+            team.setOption(Team.Option.COLLISION_RULE, Team.OptionStatus.NEVER);
+            team.setAllowFriendlyFire(false);
         }
     }
 

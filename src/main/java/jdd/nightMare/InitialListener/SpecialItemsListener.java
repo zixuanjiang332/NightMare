@@ -36,7 +36,7 @@ public class SpecialItemsListener implements Listener {
     private final java.util.Map<UUID, Set<Location>> activePlatformBlocks = new java.util.HashMap<>();
     // 存储所有蹦床的方块，用于免疫掉落蹦床时的瞬间伤害
     private final Set<Location> globalTrampolineBlocks = new HashSet<>();
-
+    private final Map<Location, UUID> activeTraps = new HashMap<>();
     public SpecialItemsListener(GameManager gameManager) {
         this.gameManager = gameManager;
     }
@@ -192,16 +192,26 @@ public class SpecialItemsListener implements Listener {
                 scrollToRefund.setAmount(1);
                 consumeItem(player);
                 startRecallTask(player, scrollToRefund,coolDowns);
-            }else if (item.getType() == Material.TRIPWIRE_HOOK && item.hasItemMeta() && item.getItemMeta().getDisplayName().contains("陷阱")) {
-                event.setCancelled(true);
-                // 部署位置：玩家当前脚下
-                Location trapLoc = player.getLocation();
-                // 消耗物品
-                item.setAmount(item.getAmount() - 1);
-                // 启动陷阱雷达
-                deployTrap(player, trapLoc);
-                player.playSound(trapLoc, Sound.BLOCK_PISTON_EXTEND, 1f, 2f);
             }
+        }
+    }
+    @EventHandler
+    public void onTrapPlace(org.bukkit.event.block.BlockPlaceEvent event) {
+        ItemStack item = event.getItemInHand();
+        if (item.getType() == Material.STRING && item.hasItemMeta() && item.getItemMeta().getDisplayName().contains("陷阱")) {
+            Player player = event.getPlayer();
+            if (!gameManager.hasActiveSession(player)) return;
+            Location trapLoc = event.getBlockPlaced().getLocation();
+            activeTraps.put(trapLoc, player.getUniqueId());
+            player.sendMessage("§a[NightMare] 陷阱线已布置！敌人踩到时将触发警报。");
+            player.playSound(trapLoc, Sound.BLOCK_STONE_PLACE, 1f, 1f);
+        }
+    }
+    @EventHandler
+    public void onTrapBreak(org.bukkit.event.block.BlockBreakEvent event) {
+        // 如果陷阱线被任何人（包含敌人）挖掉了，从记录中安全移除，防止内存泄漏
+        if (event.getBlock().getType() == Material.TRIPWIRE) {
+            activeTraps.remove(event.getBlock().getLocation());
         }
     }
     private boolean isTeammate(Player p1, Player p2) {
@@ -214,38 +224,6 @@ public class SpecialItemsListener implements Listener {
         var team2 = s2.getGame().getTeam(p2);
         // 判定队伍是否相同
         return team1 != null && team1.equals(team2);
-    }
-    private void deployTrap(Player owner, Location trapLoc) {
-        new org.bukkit.scheduler.BukkitRunnable() {
-            int ticksLived = 0; // 记录陷阱存在的时间
-
-            @Override
-            public void run() {
-                ticksLived += 10;
-                // 如果陷阱的主人离线了，或者陷阱存在超过了 10 分钟 (12000 ticks)，自动销毁
-                if (!owner.isOnline() || ticksLived > 12000) {
-                    this.cancel();
-                    return;
-                }
-
-                // 扫描陷阱半径 4 格内的实体
-                for (org.bukkit.entity.Entity entity : trapLoc.getWorld().getNearbyEntities(trapLoc, 4, 4, 4)) {
-                    if (entity instanceof Player enemy && !enemy.isDead()) {
-                        PlayerSession session = gameManager.getPlayerSession(enemy);
-                        boolean isEnemy = !isTeammate(owner, enemy);
-                        if (isEnemy && enemy.getGameMode() == GameMode.SURVIVAL) {
-                            enemy.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 60, 0));
-                            enemy.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 60, 1));
-                            trapLoc.getWorld().playSound(trapLoc, Sound.ENTITY_ELDER_GUARDIAN_CURSE, 1f, 1f);
-                            owner.sendTitle("§c§l陷阱被触发！", "§f" + enemy.getName() + " §7踩中了你的陷阱！", 10, 60, 10);
-                            owner.playSound(owner.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 2f);
-                            this.cancel();
-                            return;
-                        }
-                    }
-                }
-            }
-        }.runTaskTimer(NightMare.getInstance(), 0L, 10L); // 每 10 tick (0.5秒) 扫描一次周围，极其轻量
     }
     private void startRecallTask(Player player, ItemStack refundItem,Map<String,Integer>coolDowns) {
         player.setMetadata("RECALLING", new FixedMetadataValue(plugin, true));
@@ -374,10 +352,9 @@ public class SpecialItemsListener implements Listener {
         }
         // 搭桥蛋逻辑保持不变... (省略部分同原代码，避免过长)
         else if (event.getEntity() instanceof Egg egg && egg.getShooter() instanceof Player player) {
-            // 【修复隐患 1：副手检测】玩家很可能把搭桥蛋放在副手扔出
+            // 【副手检测】玩家很可能把搭桥蛋放在副手扔出
             ItemStack mainHand = player.getInventory().getItemInMainHand();
             ItemStack offHand = player.getInventory().getItemInOffHand();
-
             boolean isBridgeEgg = false;
             if (mainHand.hasItemMeta() && PlainTextComponentSerializer.plainText().serialize(mainHand.getItemMeta().displayName()).contains("搭桥蛋")) {
                 isBridgeEgg = true;
@@ -386,11 +363,11 @@ public class SpecialItemsListener implements Listener {
             }
 
             if (!isBridgeEgg) return;
-
             Material teamWool = getPlayerTeamWool(player);
-            Location startLoc = egg.getLocation().clone(); // 记录扔出的起点
+            Location startLoc = egg.getLocation().clone();
             Game game = gameManager.getGameFromWorld(startLoc.getWorld());
-
+            // 【优化 1：加快初始速度】让鸡蛋飞得更快，桥铺得更迅速平缓
+            egg.setVelocity(egg.getVelocity().multiply(1.3));
             // 启动动态轨迹追踪
             new BukkitRunnable() {
                 int ticks = 0;
@@ -403,29 +380,34 @@ public class SpecialItemsListener implements Listener {
                         return;
                     }
                     Location currentLoc = egg.getLocation();
-
-                    // 【修复隐患 2：距离与时间锁】限制最大飞行 9 格 (9*9=81)，或最多飞 20 tick (1秒)
-                    if (currentLoc.distanceSquared(startLoc) > 81 || ticks > 20) {
+                    // 【优化 2：大幅增加距离与时间锁】
+                    // 限制最大飞行 15，或最多飞 60 tick (3秒)
+                    if (currentLoc.distanceSquared(startLoc) > 225 || ticks > 60) {
                         egg.remove(); // 强制在半空中没收鸡蛋，掐断轨迹
                         this.cancel();
                         return;
                     }
-                    // --- 切片生成逻辑：只在鸡蛋当前脚下铺 1~3 个方块 ---
+                    // --- 切片生成逻辑 ---
                     Vector velocity = egg.getVelocity().setY(0).normalize();
-                    if (velocity.lengthSquared() > 0) { // 防止除零异常
+                    if (velocity.lengthSquared() > 0) {
                         Vector right = new Vector(-velocity.getZ(), 0, velocity.getX()).normalize();
-                        // 宽度范围 -1 到 1 (最宽 3 格)
+                        // 【优化 3：增厚桥面，增加羊毛数量】
+                        // 宽度固定 3 格 (-1 到 1)，去除了随机缺损概率
                         for (int w = -1; w <= 1; w++) {
-                            // 边缘破损感 (40% 概率不生成边缘)
-                            if (Math.abs(w) == 1 && Math.random() < 0.2) continue;
-
-                            // 在鸡蛋下方 2 格铺设 (减 2 是为了防止鸡蛋刚扔出去把玩家自己卡在方块里)
                             Location blockLoc = currentLoc.clone().subtract(0, 2, 0).add(right.clone().multiply(w));
                             Block block = blockLoc.getBlock();
 
                             if (block.getType() == Material.AIR || block.getType().name().endsWith("_WATER")) {
                                 block.setType(teamWool);
                                 game.getPlacedBlocks().add(block.getLocation());
+                            }
+                            // 【新增】在桥的最中间 (w=0) 的下方额外垫一层羊毛，增加厚度防踩空
+                            if (w == 0) {
+                                Block bottomBlock = blockLoc.clone().subtract(0, 1, 0).getBlock();
+                                if (bottomBlock.getType() == Material.AIR || bottomBlock.getType().name().endsWith("_WATER")) {
+                                    bottomBlock.setType(teamWool);
+                                    game.getPlacedBlocks().add(bottomBlock.getLocation());
+                                }
                             }
                         }
                         // 伴随飞行的音效
@@ -434,10 +416,9 @@ public class SpecialItemsListener implements Listener {
 
                     ticks++;
                 }
-            }.runTaskTimer(NightMare.getInstance(), 1L, 1L); // 依然保持每 tick 执行
+            }.runTaskTimer(NightMare.getInstance(), 1L, 1L);
         }
     }
-
     @EventHandler
     public void onPearlTeleport(PlayerTeleportEvent event) {
         // 珍珠落地时，取消原版传送，玩家会自动在珍珠坠毁点下车
@@ -471,6 +452,36 @@ public class SpecialItemsListener implements Listener {
                     event.getFrom().getBlockZ() != event.getTo().getBlockZ() ||
                     event.getFrom().getBlockY() != event.getTo().getBlockY()) {
                 updateWalkingPlatform(player, player.getLocation().subtract(0, 1, 0));
+            }
+        }
+        Block blockAtFeet = player.getLocation().getBlock();
+        // 检查脚下的方块是不是绊线
+        if (blockAtFeet.getType() == Material.TRIPWIRE) {
+            Location trapLoc = blockAtFeet.getLocation();
+            // 检查这个绊线是不是玩家布置的陷阱
+            if (activeTraps.containsKey(trapLoc)) {
+                UUID ownerUUID = activeTraps.get(trapLoc);
+                Player owner = Bukkit.getPlayer(ownerUUID);
+                // 判定是否为敌人 (如果主人离线了，判定为必须触发)
+                boolean isEnemy = true;
+                if (owner != null) {
+                    isEnemy = !isTeammate(owner, player);
+                }
+                // 只有生存模式的敌人踩上去才会触发
+                if (isEnemy && player.getGameMode() == GameMode.SURVIVAL) {
+                    // 1. 给敌人施加负面效果
+                    player.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 60, 0));
+                    player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 60, 1));
+                    trapLoc.getWorld().playSound(trapLoc, Sound.ENTITY_ELDER_GUARDIAN_CURSE, 1f, 1f);
+                    // 2. 通知主人
+                    if (owner != null && owner.isOnline()) {
+                        owner.sendTitle("§c§l陷阱被触发！", "§f" + player.getName() + " §7踩中了你的陷阱线！", 10, 60, 10);
+                        owner.playSound(owner.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 2f);
+                    }
+                    // 3. 销毁陷阱（阅后即焚）
+                    activeTraps.remove(trapLoc);
+                    blockAtFeet.setType(Material.AIR);
+                }
             }
         }
     }
