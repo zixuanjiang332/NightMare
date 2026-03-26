@@ -552,7 +552,8 @@ public class Game {
                         int minCount = gameConfiguration.getTeamSize();
                         GameTeam finalTeam = null;
                         for (GameTeam team : gameTeams){
-                            if (team.getPlayerCount()<minCount){
+                            if (team.getPlayerCount() < minCount && team.getPlayerCount() < gameConfiguration.getTeamSize()) {
+                                minCount = team.getPlayerCount();
                                 finalTeam = team;
                             }
                         }

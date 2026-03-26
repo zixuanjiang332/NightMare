@@ -367,11 +367,10 @@ public class SpecialItemsListener implements Listener {
             Location startLoc = egg.getLocation().clone();
             Game game = gameManager.getGameFromWorld(startLoc.getWorld());
             // 【优化 1：加快初始速度】让鸡蛋飞得更快，桥铺得更迅速平缓
-            egg.setVelocity(egg.getVelocity().multiply(1.3));
+            egg.setVelocity(egg.getVelocity().multiply(1.2));
             // 启动动态轨迹追踪
             new BukkitRunnable() {
                 int ticks = 0;
-
                 @Override
                 public void run() {
                     // 终止条件 A：落地或撞墙
@@ -382,7 +381,7 @@ public class SpecialItemsListener implements Listener {
                     Location currentLoc = egg.getLocation();
                     // 【优化 2：大幅增加距离与时间锁】
                     // 限制最大飞行 15，或最多飞 60 tick (3秒)
-                    if (currentLoc.distanceSquared(startLoc) > 225 || ticks > 60) {
+                    if (currentLoc.distanceSquared(startLoc) > 275 || ticks > 60) {
                         egg.remove(); // 强制在半空中没收鸡蛋，掐断轨迹
                         this.cancel();
                         return;
