@@ -1,5 +1,5 @@
 package jdd.nightMare.InitialListener;
-
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import com.destroystokyo.paper.event.entity.ThrownEggHatchEvent;
 import com.destroystokyo.paper.event.player.PlayerPickupExperienceEvent;
 import com.destroystokyo.paper.event.player.PlayerSetSpawnEvent;
@@ -60,39 +60,6 @@ public class GameListeners implements Listener {
     public GameListeners(GameManager gameManager) {
         this.gameManager = gameManager;
     }
-
-    @EventHandler
-    public void onPlayerChat(AsyncChatEvent event) {
-        Player player = event.getPlayer();
-        Set<Audience> recipients = event.viewers();
-
-        if (gameManager.hasActiveSession(player)) {
-            for (Player other : Bukkit.getOnlinePlayers()) {
-                if (player.equals(other)) continue;
-                if (!gameManager.hasActiveSession(other)) {
-                    recipients.remove(other);
-                } else {
-                    String otherId = gameManager.getPlayerSessions().get(other).getGame().getId();
-                    String thisId = gameManager.getPlayerSessions().get(player).getGame().getId();
-                    if (!otherId.equals(thisId)) {
-                        recipients.remove(other);
-                    } else {
-                        recipients.add(other);
-                    }
-                }
-            }
-        } else {
-            for (Player other : Bukkit.getOnlinePlayers()) {
-                if (player.equals(other)) continue;
-                if (gameManager.hasActiveSession(other)) {
-                    recipients.remove(other);
-                } else {
-                    recipients.add(other);
-                }
-            }
-        }
-    }
-
     @EventHandler
     public void onTeleport(PlayerTeleportEvent event) {
         if (gameManager.hasActiveSession(event.getPlayer()) && event.getTo().getWorld() != gameManager.getPlayerSession(event.getPlayer()).getGame().getMap().getBukkitWorld()) {
@@ -579,34 +546,23 @@ public class GameListeners implements Listener {
     @EventHandler
     public void onWitherExplode(EntityExplodeEvent event) {
         if (event.getEntityType() == EntityType.WITHER || event.getEntityType() == EntityType.WITHER_SKULL) {
-            // 只取消方块破坏，不取消伤害
             event.blockList().clear();
         }
     }
     @EventHandler
     public void onTNTThrow(PlayerInteractEvent event) {
-        // 检查是否是右键点击（空气或方块）
         if (event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
         ItemStack item = event.getItem();
-        // 只要类型是 TNT 就触发
         if (item == null || item.getType() != Material.TNT) return;
-        // 取消原版的“放置方块”动作
         event.setCancelled(true);
         Player player = event.getPlayer();
-        // 消耗一个 TNT
         item.setAmount(item.getAmount() - 1);
-        // 在玩家眼睛位置生成一个已点燃的 TNT 实体
         TNTPrimed tnt = player.getWorld().spawn(player.getEyeLocation(), TNTPrimed.class);
-        tnt.setYield(3.8F);
-        // --- 设置向前的巨大动量 ---
-        // multiply(2.5) 会让它飞得非常快且远，你可以根据测试情况调整这个数值
+        tnt.setYield(3.5F);
         Vector throwVelocity = player.getLocation().getDirection().multiply(2.8);
         tnt.setVelocity(throwVelocity);
-
-        // 设置引信时间（2秒后爆炸，40 ticks）
         tnt.setFuseTicks(15);
         tnt.setMetadata("source_player", new FixedMetadataValue(NightMare.getInstance(), player.getUniqueId().toString()));
-        // 播放发射音效（增加打击感）
         player.playSound(player.getLocation(), Sound.ENTITY_WITCH_THROW, 1.0f, 0.5f);
     }
     @EventHandler
@@ -621,29 +577,23 @@ public class GameListeners implements Listener {
                 double distance = drag.length();
                 if (distance < 0.1) continue;
                 drag.normalize();
-
                 double power = 6.0 * (1 - (distance / radius));
                 drag.setY(drag.getY() + 0.5);
                 victim.setVelocity(drag.multiply(power));
-                // 1. 打上免摔落伤害的标记
                 victim.setMetadata("TNT_LAUNCHED", new FixedMetadataValue(NightMare.getInstance(), true));
-                // 2. 【新增】启动智能监控任务，完美替代 PlayerMoveEvent
                 new BukkitRunnable() {
-                    int timeout = 0; // 记录飞行时间
+                    int timeout = 0;
                     @Override
                     public void run() {
                         timeout += 5;
-                        // 情况 A：玩家离线、死亡、或者标记已经被（摔落伤害事件）消耗了
-                        // 或者飞行时间超过了 10 秒 (200 ticks)，强行移除标记防止永久免伤
                         if (!victim.isOnline() || victim.isDead() || !victim.hasMetadata("TNT_LAUNCHED") || timeout > 200) {
                             if (victim.isOnline()) {
                                 victim.removeMetadata("TNT_LAUNCHED", NightMare.getInstance());
                             }
-                            this.cancel(); // 停止定时任务
+                            this.cancel();
                             return;
                         }
-                        // 情况 B：软着陆（落入水中或岩浆中）
-                        // 因为落水不会触发摔落伤害，所以需要在这里手动清除标记
+
                         if (victim.getLocation().getBlock().isLiquid()) {
                             victim.removeMetadata("TNT_LAUNCHED", NightMare.getInstance());
                             this.cancel();
@@ -704,23 +654,114 @@ public class GameListeners implements Listener {
 
     }
     @EventHandler
-    public void onChatEvent(AsyncChatEvent event){
+    public void onUnifiedChat(AsyncChatEvent event) {
         Player player = event.getPlayer();
-        PlayerSession playerSession = gameManager.getPlayerSession(player);
 
-        if (playerSession!=null){
-            event.viewers().clear();
-            event.viewers().addAll(playerSession.getGame().getGamePlayers().keySet());
+        // 【防爆修复 1：异步线程安全】直接获取 Session，防止玩家瞬间离线导致 NPE
+        PlayerSession session = gameManager.getPlayerSession(player);
 
-            event.renderer(((sender, name, message, audience) ->
-                    Component.text(sender.getName(), NamedTextColor.GRAY).append(Component.text(": ")).append(message.color(NamedTextColor.WHITE))
-            ));
-        } else {
-            for (Player p : gameManager.getPlayerSessions().keySet()){
-                event.viewers().remove(p);
-            }
+        // ==========================================
+        // 1. 大厅聊天逻辑 (玩家不在游戏中，或数据已销毁)
+        // ==========================================
+        if (session == null || session.getGame() == null) {
+            event.viewers().removeIf(viewer -> {
+                if (viewer instanceof Player p) {
+                    return gameManager.hasActiveSession(p);
+                }
+                return false;
+            });
+            event.renderer((source, sourceDisplayName, message, viewer) ->
+                    Component.text(player.getName(), NamedTextColor.GRAY)
+                            .append(Component.text(": ", NamedTextColor.WHITE))
+                            .append(message.color(NamedTextColor.WHITE))
+            );
+            return;
         }
 
+        // ==========================================
+        // 2. 游戏内聊天逻辑
+        // ==========================================
+        Game game = session.getGame();
+        GameTeam team = session.getGameTeam();
+
+        String messageStr = PlainTextComponentSerializer.plainText().serialize(event.message());
+        boolean isShout = messageStr.startsWith("!") || messageStr.startsWith("！");
+
+        boolean isSpectator = game.isSpectator(player);
+        boolean isWaitingLobby = game.isWaiting() || game.isStarting();
+
+        // 【防爆修复 2：加入游戏结束状态】
+        boolean isGameEnded = game.hasEnded();
+
+        NamedTextColor teamColor = getNamedTextColor(team != null ? team.getTeamName() : "gray");
+
+        // 安全清理：只移除玩家观众，保留后台 Console 的监控能力
+        event.viewers().removeIf(viewer -> viewer instanceof Player);
+
+        if (isWaitingLobby || isGameEnded) {
+            // --- A. 等待区 & 结算区 (所有人可见，自由发言，跨队打GG) ---
+            event.viewers().addAll(game.getInGamePlayers());
+            String prefix = isWaitingLobby ? "[等待区] " : "[结算区] ";
+            NamedTextColor prefixColor = isWaitingLobby ? NamedTextColor.AQUA : NamedTextColor.LIGHT_PURPLE;
+
+            event.renderer((source, sourceDisplayName, message, viewer) ->
+                    Component.text(prefix, prefixColor)
+                            .append(Component.text(player.getName(), teamColor)) // 在等待/结算区也显示队伍颜色
+                            .append(Component.text(": ", NamedTextColor.WHITE))
+                            .append(message.color(NamedTextColor.WHITE))
+            );
+
+        } else if (isSpectator) {
+            // --- B. 旁观者频道 ---
+            event.viewers().addAll(game.getSpectators());
+            event.renderer((source, sourceDisplayName, message, viewer) ->
+                    Component.text("[旁观] ", NamedTextColor.GRAY)
+                            .append(Component.text(player.getName(), NamedTextColor.GRAY))
+                            .append(Component.text(": ", NamedTextColor.WHITE))
+                            .append(message.color(NamedTextColor.GRAY))
+            );
+
+        } else if (isShout) {
+            // --- C. 全局喊话频道 ---
+            event.viewers().addAll(game.getInGamePlayers());
+
+            // 【防爆修复 3：完美保留富文本】
+            // 使用正则匹配中英文感叹号以及可能带有的空格 (如 "! 你好") 并将其透明替换，绝不会破坏鼠标悬浮等交互事件！
+            Component realMessage = event.message().replaceText(builder ->
+                    builder.match("^[!！]\\s*").replacement("").once()
+            );
+            event.renderer((source, sourceDisplayName, message, viewer) ->
+                    Component.text("[全局] ", NamedTextColor.GOLD)
+                            .append(Component.text(player.getName(), teamColor))
+                            .append(Component.text(": ", NamedTextColor.WHITE))
+                            .append(realMessage.color(NamedTextColor.WHITE)) // 渲染保留了富文本的真消息
+            );
+
+        } else {
+            // --- D. 队伍私聊频道 (默认) ---
+            if (team != null) {
+                event.viewers().addAll(team.getTeamPlayers());
+                event.renderer((source, sourceDisplayName, message, viewer) ->
+                        Component.text("[队伍] ", NamedTextColor.GREEN)
+                                .append(Component.text(player.getName(), teamColor))
+                                .append(Component.text(": ", NamedTextColor.WHITE))
+                                .append(message.color(NamedTextColor.GREEN))
+                );
+            }
+        }
+    }
+    // 辅助方法：将队伍名字转换为 Paper 原生颜色
+    private NamedTextColor getNamedTextColor(String teamName) {
+        if (teamName == null) return NamedTextColor.GRAY;
+        return switch (teamName.toLowerCase()) {
+            case "red" -> NamedTextColor.RED;
+            case "blue" -> NamedTextColor.BLUE;
+            case "green" -> NamedTextColor.GREEN;
+            case "yellow" -> NamedTextColor.YELLOW;
+            case "orange" -> NamedTextColor.GOLD;
+            case "purple" -> NamedTextColor.DARK_PURPLE;
+            default -> NamedTextColor.GRAY;
+        };
     }
 
     @EventHandler
@@ -773,16 +814,14 @@ public class GameListeners implements Listener {
         ItemStack droppedItem = event.getItemDrop().getItemStack();
         Material type = droppedItem.getType();
         String name = type.name();
-        // 3. 核心逻辑：禁止丢弃 剑、镐、斧、护甲、剪刀
-        // 使用 matches 检查后缀，这样可以一次性过滤掉木、石、铁、金、钻石、下界合金系列
-        boolean isForbidden = name.endsWith("_SWORD")   // 剑
-                || name.endsWith("_PICKAXE")             // 镐
-                || name.endsWith("_AXE")                 // 斧 (注意：这也会包括木斧等)
-                || name.endsWith("_HELMET")              // 头盔
-                || name.endsWith("_CHESTPLATE")          // 胸甲
-                || name.endsWith("_LEGGINGS")            // 护腿
-                || name.endsWith("_BOOTS")               // 靴子
-                || type == Material.SHEARS;               // 剪刀
+        boolean isForbidden = name.endsWith("_SWORD")
+                || name.endsWith("_PICKAXE")
+                || name.endsWith("_AXE")
+                || name.endsWith("_HELMET")
+                || name.endsWith("_CHESTPLATE")
+                || name.endsWith("_LEGGINGS")
+                || name.endsWith("_BOOTS")
+                || type == Material.SHEARS;
 
         if (isForbidden) {
             event.setCancelled(true);

@@ -75,13 +75,10 @@ public class SpecialItemsListener implements Listener {
 
     @EventHandler
     public void onFireballDamage(EntityDamageByEntityEvent event) {
-        // 处理“火球跳”对自己造成的伤害
         if (event.getDamager() instanceof org.bukkit.entity.Fireball fireball && fireball.hasMetadata("custom_fireball")) {
             if (event.getEntity() instanceof Player victim) {
                 String shooterUUID = fireball.getMetadata("custom_fireball").get(0).asString();
-                // 如果被炸的是发射者本人 (他在尝试火球跳)
                 if (victim.getUniqueId().toString().equals(shooterUUID)) {
-                    // 将伤害大幅降低 (比如只扣 1 颗心)，但保留原版的爆炸击退力
                     event.setDamage(2.0);
                 }
             }
@@ -96,10 +93,9 @@ public class SpecialItemsListener implements Listener {
         if (item == null) return;
         Action action = event.getAction();
         if (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK) {
-            // --- 指南针：追踪最近的其他队伍玩家 ---
             if (item.getType() == Material.COMPASS) {
                 trackNearestEnemy(player);
-                return; // 指南针通常不消耗
+                return;
             }
 
             if (!item.hasItemMeta()) return;
@@ -114,15 +110,14 @@ public class SpecialItemsListener implements Listener {
                 }
                 event.setCancelled(true);
                 consumeItem(player);
-                player.addPotionEffect(new PotionEffect(PotionEffectType.LEVITATION, 30, 40));
-                player.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING, 1200, 0));
+                player.addPotionEffect(new PotionEffect(PotionEffectType.LEVITATION, 30, 40), true);
+                player.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING, 1200, 0), true);
                 player.setMetadata("PARACHUTE_ACTIVE", new FixedMetadataValue(plugin, true));
                 player.playSound(player.getLocation(), Sound.ITEM_ARMOR_EQUIP_ELYTRA, 1f, 1f);
                 player.sendMessage("§b[NightMare] §f降落伞已开启！(按 Shift 可主动收伞)");
                 coolDowns.put("降落伞", 45);
             }
 
-            // --- 2. 行走平台 (5秒时长, #字形) ---
             else if (displayName.contains("行走平台")) {
                 if (coolDowns.get("行走平台")>0){
                     player.sendMessage("§c[NightMare] 行走平台冷却中！冷却剩余:§f"+coolDowns.get("行走平台")+"s");
@@ -131,14 +126,12 @@ public class SpecialItemsListener implements Listener {
                 }
                 event.setCancelled(true);
                 consumeItem(player);
-                // 时间缩减到 5 秒
                 player.setMetadata("WALKING_PLATFORM", new FixedMetadataValue(plugin, System.currentTimeMillis() + 5000));
                 updateWalkingPlatform(player, player.getLocation().subtract(0, 1, 0));
                 player.sendMessage("§a[NightMare] §f行走平台激活！持续5秒 (按 Shift 可提前取消)");
                 coolDowns.put("行走平台", 30);
             }
 
-            // --- 3. 蹦床 (7x7大范围) ---
             else if (displayName.contains("蹦床")) {
                 if (coolDowns.get("蹦床")>0){
                     player.sendMessage("§c[NightMare] 蹦床冷却中！冷却剩余:§f"+coolDowns.get("蹦床")+"s");
@@ -150,23 +143,21 @@ public class SpecialItemsListener implements Listener {
                 int centerX = deployLoc.getBlockX();
                 int centerY = deployLoc.getBlockY();
                 int centerZ = deployLoc.getBlockZ();
-                // 2. 障碍物检测 (7x7 范围，即中心向外扩展 3 格)
                 boolean hasObstacle = false;
                 for (int x = -3; x <= 3; x++) {
                     for (int z = -3; z <= 3; z++) {
                         Block block = world.getBlockAt(centerX + x, centerY, centerZ + z);
                         if (block.getType() != Material.AIR) {
                             hasObstacle = true;
-                            break; // 发现障碍物，跳出内层循环
+                            break;
                         }
                     }
-                    if (hasObstacle) break; // 跳出外层循环
+                    if (hasObstacle) break;
                 }
-                // 3. 拦截逻辑
                 if (hasObstacle) {
                     player.sendMessage("§c[NightMare] 7x7 范围内存在障碍物，蹦床无法展开！");
                     event.setCancelled(true);
-                    return; // 直接返回，不扣除物品，不进入冷却
+                    return;
                 }
                 event.setCancelled(true);
                 consumeItem(player);
@@ -174,8 +165,6 @@ public class SpecialItemsListener implements Listener {
                 player.sendMessage("§d[NightMare] §f7x7 巨型蹦床已部署！");
                 coolDowns.put("蹦床", 30);
             }
-
-            // --- 4. 回城卷轴 (火药) ---
             else if (displayName.contains("回城卷轴") && item.getType() == Material.GUNPOWDER) {
                 if (coolDowns.get("回城卷轴")>0){
                     player.sendMessage("§c[NightMare] 回城卷轴冷却中！冷却剩余:§f"+coolDowns.get("回城卷轴")+"s");
@@ -183,7 +172,6 @@ public class SpecialItemsListener implements Listener {
                     return;
                 }
                 event.setCancelled(true);
-                // 防止重复使用刷屏或卡 Bug
                 if (player.hasMetadata("RECALLING")) {
                     player.sendMessage("§c[NightMare] 你已经在使用回城卷轴了！");
                     return;
@@ -209,20 +197,16 @@ public class SpecialItemsListener implements Listener {
     }
     @EventHandler
     public void onTrapBreak(org.bukkit.event.block.BlockBreakEvent event) {
-        // 如果陷阱线被任何人（包含敌人）挖掉了，从记录中安全移除，防止内存泄漏
         if (event.getBlock().getType() == Material.TRIPWIRE) {
-            activeTraps.remove(event.getBlock().getLocation());
+            event.setCancelled( true);
         }
     }
     private boolean isTeammate(Player p1, Player p2) {
         PlayerSession s1 = gameManager.getPlayerSession(p1);
         PlayerSession s2 = gameManager.getPlayerSession(p2);
-        // 如果任何一方不在游戏会话中，视为非队友（或者为了安全视为队友，取决于你的逻辑）
         if (s1 == null || s2 == null || s1.getGame() == null || s2.getGame() == null) return false;
-        // 获取各自的队伍
         var team1 = s1.getGame().getTeam(p1);
         var team2 = s2.getGame().getTeam(p2);
-        // 判定队伍是否相同
         return team1 != null && team1.equals(team2);
     }
     private void startRecallTask(Player player, ItemStack refundItem,Map<String,Integer>coolDowns) {
@@ -232,22 +216,17 @@ public class SpecialItemsListener implements Listener {
             int timeLeft = 5;
             @Override
             public void run() {
-                // 1. 玩家离线或死亡，直接取消任务并清理标记
                 if (!player.isOnline() || player.isDead()) {
                     player.removeMetadata("RECALLING", plugin);
                     this.cancel();
                     return;
                 }
-
-                // 2. 检测标记是否被清除（由受击事件触发）
                 if (!player.hasMetadata("RECALLING")) {
                     interruptRecall(player, refundItem, "§c[NightMare] 你受到了伤害，回城失效！");
                     this.cancel();
                     coolDowns.put("回城卷轴", 0);
                     return;
                 }
-                // 3. 检测玩家是否移动
-                // 使用 distanceSquared 比较，允许原地转头(Yaw/Pitch 变化)，但不能走路
                 Location currentLoc = player.getLocation();
                 if (startLoc.getWorld() != currentLoc.getWorld() || startLoc.distanceSquared(currentLoc) > 0.1) {
                     player.removeMetadata("RECALLING", plugin);
@@ -256,60 +235,47 @@ public class SpecialItemsListener implements Listener {
                     coolDowns.put("回城卷轴", 0);
                     return;
                 }
-
-                // 4. 倒计时结束，执行传送
                 if (timeLeft <= 0) {
                     player.removeMetadata("RECALLING", plugin);
-                    teleportToTeamSpawn(player); // 调用你原有的传送方法
+                    teleportToTeamSpawn(player);
                     this.cancel();
                     coolDowns.put("回城卷轴", 40);
                     return;
                 }
                 player.sendTitle("§b回城施法中", "§e" + timeLeft + " §7秒后传送 (请勿移动)", 0, 25, 0);
                 player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASEDRUM, 1f, 1f);
-
                 timeLeft--;
             }
-        }.runTaskTimer(plugin, 0L, 20L); // 0延迟，每20 tick(1秒) 执行一次
+        }.runTaskTimer(plugin, 0L, 20L);
     }
     private void interruptRecall(Player player, ItemStack refundItem, String reason) {
         player.sendMessage(reason);
         player.playSound(player.getLocation(), Sound.BLOCK_GLASS_BREAK, 1f, 1f);
-        player.resetTitle(); // 清除屏幕上的倒计时
-
-        // 尝试退还卷轴到背包，如果背包满了则掉落在玩家脚下
+        player.resetTitle();
         if (!player.getInventory().addItem(refundItem).isEmpty()) {
             player.getWorld().dropItem(player.getLocation(), refundItem);
         }
     }
 
-    // ==============================================
-    //               摔落伤害与安全机制修复
-    // ==============================================
     @EventHandler
     public void onDamage(EntityDamageEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
-        // 【新增】回城打断机制：只要造成了实质性伤害，就移除施法标记
         if (player.hasMetadata("RECALLING") && event.getFinalDamage() > 0) {
-            // 移除标记后，下一秒的 Runnable 就会捕捉到标记消失，并执行退还逻辑
             player.removeMetadata("RECALLING", plugin);
         }
 
         if (event.getCause() == EntityDamageEvent.DamageCause.FALL) {
-            // 修复降落伞无缓降摔死：只要有降落伞标记，强行免疫摔伤
             if (player.hasMetadata("PARACHUTE_ACTIVE")) {
                 event.setCancelled(true);
                 return;
             }
 
-            // 修复蹦床跳跃落地摔死：如果是从蹦床起跳的，免疫本次落地伤害并移除标记
             if (player.hasMetadata("BOUNCED")) {
                 event.setCancelled(true);
                 player.removeMetadata("BOUNCED", plugin);
                 return;
             }
 
-            // 修复高空掉落时，瞬间放置蹦床砸在羊毛上摔死
             Block underBlock = player.getLocation().subtract(0, 0.1, 0).getBlock();
             if (globalTrampolineBlocks.contains(underBlock.getLocation())) {
                 event.setCancelled(true);
@@ -317,20 +283,15 @@ public class SpecialItemsListener implements Listener {
         }
     }
 
-    // ==============================================
-    //               Shift 潜行取消道具逻辑
-    // ==============================================
     @EventHandler
     public void onSneak(PlayerToggleSneakEvent event) {
         Player player = event.getPlayer();
         if (event.isSneaking()) {
-            // 取消降落伞
             if (player.hasMetadata("PARACHUTE_ACTIVE")) {
                 player.removeMetadata("PARACHUTE_ACTIVE", plugin);
                 player.removePotionEffect(PotionEffectType.SLOW_FALLING);
                 player.sendMessage("§7[NightMare] 已手动收起降落伞。");
             }
-            // 取消行走平台
             if (player.hasMetadata("WALKING_PLATFORM")) {
                 clearWalkingPlatform(player);
                 player.removeMetadata("WALKING_PLATFORM", plugin);
@@ -339,9 +300,6 @@ public class SpecialItemsListener implements Listener {
         }
     }
 
-    // ==============================================
-    //               末影珍珠：骑乘与禁传送
-    // ==============================================
     @EventHandler
     public void onPearlLaunch(ProjectileLaunchEvent event) {
         if (event.getEntity() instanceof org.bukkit.entity.EnderPearl pearl) {
@@ -350,9 +308,7 @@ public class SpecialItemsListener implements Listener {
                 player.playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_FLAP, 1f, 1.5f);
             }
         }
-        // 搭桥蛋逻辑保持不变... (省略部分同原代码，避免过长)
         else if (event.getEntity() instanceof Egg egg && egg.getShooter() instanceof Player player) {
-            // 【副手检测】玩家很可能把搭桥蛋放在副手扔出
             ItemStack mainHand = player.getInventory().getItemInMainHand();
             ItemStack offHand = player.getInventory().getItemInOffHand();
             boolean isBridgeEgg = false;
@@ -366,9 +322,7 @@ public class SpecialItemsListener implements Listener {
             Material teamWool = getPlayerTeamWool(player);
             Location startLoc = egg.getLocation().clone();
             Game game = gameManager.getGameFromWorld(startLoc.getWorld());
-            // 【优化 1：加快初始速度】让鸡蛋飞得更快，桥铺得更迅速平缓
-            egg.setVelocity(egg.getVelocity().multiply(1.2));
-            // 启动动态轨迹追踪
+            egg.setVelocity(egg.getVelocity().multiply(1.0));
             new BukkitRunnable() {
                 int ticks = 0;
                 @Override
@@ -379,19 +333,16 @@ public class SpecialItemsListener implements Listener {
                         return;
                     }
                     Location currentLoc = egg.getLocation();
-                    // 【优化 2：大幅增加距离与时间锁】
-                    // 限制最大飞行 15，或最多飞 60 tick (3秒)
+
                     if (currentLoc.distanceSquared(startLoc) > 275 || ticks > 60) {
-                        egg.remove(); // 强制在半空中没收鸡蛋，掐断轨迹
+                        egg.remove();
                         this.cancel();
                         return;
                     }
-                    // --- 切片生成逻辑 ---
+
                     Vector velocity = egg.getVelocity().setY(0).normalize();
                     if (velocity.lengthSquared() > 0) {
                         Vector right = new Vector(-velocity.getZ(), 0, velocity.getX()).normalize();
-                        // 【优化 3：增厚桥面，增加羊毛数量】
-                        // 宽度固定 3 格 (-1 到 1)，去除了随机缺损概率
                         for (int w = -1; w <= 1; w++) {
                             Location blockLoc = currentLoc.clone().subtract(0, 2, 0).add(right.clone().multiply(w));
                             Block block = blockLoc.getBlock();
@@ -400,7 +351,6 @@ public class SpecialItemsListener implements Listener {
                                 block.setType(teamWool);
                                 game.getPlacedBlocks().add(block.getLocation());
                             }
-                            // 【新增】在桥的最中间 (w=0) 的下方额外垫一层羊毛，增加厚度防踩空
                             if (w == 0) {
                                 Block bottomBlock = blockLoc.clone().subtract(0, 1, 0).getBlock();
                                 if (bottomBlock.getType() == Material.AIR || bottomBlock.getType().name().endsWith("_WATER")) {
@@ -409,7 +359,6 @@ public class SpecialItemsListener implements Listener {
                                 }
                             }
                         }
-                        // 伴随飞行的音效
                         currentLoc.getWorld().playSound(currentLoc, Sound.BLOCK_WOOL_PLACE, 0.5f, 1.2f);
                     }
 
@@ -420,25 +369,22 @@ public class SpecialItemsListener implements Listener {
     }
     @EventHandler
     public void onPearlTeleport(PlayerTeleportEvent event) {
-        // 珍珠落地时，取消原版传送，玩家会自动在珍珠坠毁点下车
         if (event.getCause() == PlayerTeleportEvent.TeleportCause.ENDER_PEARL) {
             event.setCancelled(true);
         }
     }
 
-    // ==============================================
-    //               移动检测：降落伞与行走平台
-    // ==============================================
     @EventHandler
     public void onMove(PlayerMoveEvent event) {
         Player player = event.getPlayer();
-
-        // 落地自动收伞
-        if (player.hasMetadata("PARACHUTE_ACTIVE") && player.isOnGround()) {
+        if (player.hasMetadata("PARACHUTE_ACTIVE")
+                && player.isOnGround()
+                && !player.hasPotionEffect(PotionEffectType.LEVITATION)) {
             player.removePotionEffect(PotionEffectType.SLOW_FALLING);
             player.removeMetadata("PARACHUTE_ACTIVE", plugin);
+            // 可选：给个落地收伞的音效反馈
+            player.playSound(player.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 1f, 1f);
         }
-
         // 行走平台动态生成
         if (player.hasMetadata("WALKING_PLATFORM")) {
             long expiry = player.getMetadata("WALKING_PLATFORM").get(0).asLong();

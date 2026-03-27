@@ -156,7 +156,7 @@ public class BossManager {
     public static final NamespacedKey BOSS_ROLE_KEY = new NamespacedKey(NightMare.getInstance(), "boss_role");
 
     public void spawnMidBoss() {
-        Location midLoc = game.getMap().getSpectatorLocation().clone().add(0, 12.5, 0);
+        Location midLoc = game.getMap().getSpectatorLocation().clone().add(0, 0, 0);
         midLoc.getChunk().load();
         // 生成凋零
         Wither wither = (Wither) midLoc.getWorld().spawnEntity(midLoc, EntityType.WITHER);
@@ -196,8 +196,8 @@ public class BossManager {
                 }
                 // 2. 逻辑分频：每 20 tick (1秒) 寻找一次最近玩家并尝试攻击
                 attackCooldown++;
-                if (attackCooldown >= 80) { // 设定 2 秒攻击一次
-                    Player target = getNearestEnemyPlayer(wither, 30.0); // 搜索 30 格内
+                if (attackCooldown >= 160) {
+                    Player target = getNearestEnemyPlayer(wither, 20.0); // 搜索 30 格内
                     if (target != null) {
                         launchWitherSkull(wither, target);
                     }

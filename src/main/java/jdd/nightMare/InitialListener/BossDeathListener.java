@@ -116,7 +116,16 @@ public class BossDeathListener implements Listener {
         String role = wither.getPersistentDataContainer().get(BossManager.BOSS_ROLE_KEY, PersistentDataType.STRING);
         if ("MID_BOSS".equals(role)) {
             Player killer = wither.getKiller();
-            if (killer == null) return;
+            if (killer == null) {
+                int bookCount = random.nextInt(2) + 2; // 2 或 3
+                for (int i = 0; i < bookCount; i++) {
+                    ItemStack book = createRandomEnchantedBook();
+                    wither.getLocation().getWorld().dropItemNaturally(wither.getLocation(), book);
+                }
+
+                event.getDrops().clear();
+                return;
+            }
             // 1. 发放全队 Buff (力量 I, 4分钟 = 4800 Ticks)
             GameTeam team = gameManager.getPlayerSession(killer).getGame().getTeam(killer);
             if (team != null) {
@@ -132,7 +141,6 @@ public class BossDeathListener implements Listener {
                 ItemStack book = createRandomEnchantedBook();
                 wither.getLocation().getWorld().dropItemNaturally(wither.getLocation(), book);
             }
-
             // 清除原版掉落（下界之星）
             event.getDrops().clear();
         }

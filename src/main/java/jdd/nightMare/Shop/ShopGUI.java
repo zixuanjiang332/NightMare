@@ -106,7 +106,6 @@ public class ShopGUI {
             }
         }
 
-        // 确保这部分代码能顺利执行，刷新 GUI 状态
         Bukkit.getScheduler().runTask(NightMare.getInstance(), () -> {
             player.updateInventory();
             Component titleComp = player.getOpenInventory().title();
@@ -119,7 +118,6 @@ public class ShopGUI {
             }
         });
     }
-    // 辅助方法：手动检查资源（避开原版 containsAtLeast 的 Meta 坑）
     private boolean hasEnough(Player player, Material material, int amount) {
         int count = 0;
         for (ItemStack item : player.getInventory().getContents()) {
@@ -130,7 +128,6 @@ public class ShopGUI {
         return count >= amount;
     }
 
-    // 辅助方法：手动扣款（确保扣除正确数量）
     private void removeCurrency(Player player, Material material, int amount) {
         int toRemove = amount;
         ItemStack[] contents = player.getInventory().getContents();
@@ -152,9 +149,7 @@ public class ShopGUI {
     private void upgradeHealth(Player player, Material appleType) {
         double targetBonus = (appleType == Material.APPLE) ? 4.0 :
                 (appleType == Material.GOLDEN_APPLE ? 8.0 : 12.0);
-        // 直接通过属性修饰符提升
         applyHealthModifier(player, targetBonus);
-        // 反馈
         int displayLevel = (int)(targetBonus / 4);
         player.sendMessage("§c❤ 你的永久生命等级已提升至 §l" + displayLevel + " §c级！");
         player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.2f);
@@ -162,11 +157,8 @@ public class ShopGUI {
     private Map<Enchantment, Integer> getAndRemoveOldTier(Player player, Material newMat) {
         Map<Enchantment, Integer> accumulatedEnchants = new HashMap<>();
         Inventory inv = player.getInventory();
-
         List<Material> targets = new ArrayList<>();
         String name = newMat.name();
-
-        // 判定进化链，确保包含钻石级，否则升到满级时无法继承前一级的附魔
         if (name.contains("AXE") && !name.contains("PICKAXE")) {
             targets.addAll(List.of(Material.WOODEN_AXE, Material.GOLDEN_AXE, Material.IRON_AXE, Material.DIAMOND_AXE));
         } else if (name.contains("SWORD")) {
@@ -184,11 +176,9 @@ public class ShopGUI {
         for (int i = 0; i < contents.length; i++) {
             ItemStack item = contents[i];
             if (item != null && targets.contains(item.getType())) {
-                // 提取附魔
                 item.getEnchantments().forEach((ench, lvl) -> {
                     accumulatedEnchants.merge(ench, lvl, Math::max);
                 });
-                // 清除该物品（无论是背包里的还是穿在身上的）
                 inv.setItem(i, null);
             }
         }
@@ -261,16 +251,16 @@ public class ShopGUI {
             reward.setItemMeta(meta);
             rewardName = "降落伞 x1";
         }
-       else if (roll < 80) { // 40% 概率
+       else if (roll < 80) {
             reward = new ItemStack(Material.TNT, 1);
             rewardName = "TNT x1";
-        } else if (roll < 85) { // 30% 概率
+        } else if (roll < 85) {
             reward = new ItemStack(Material.ENDER_PEARL, 1);
             rewardName = "末影珍珠 x1";
-        } else if (roll < 90) { // 15% 概率
+        } else if (roll < 90) {
             reward = new ItemStack(Material.GOLDEN_APPLE, 1);
             rewardName = "金苹果 x1";
-        } else if (roll < 97) { // 10% 概率
+        } else if (roll < 97) {
             reward = new ItemStack(Material.BLAZE_ROD, 1);
             ItemMeta meta = reward.getItemMeta();
             meta.displayName(Component.text("§6自救平台"));
