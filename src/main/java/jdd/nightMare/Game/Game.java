@@ -146,8 +146,9 @@ public class Game {
         passiveIncomeTask = new BukkitRunnable() {
             @Override
             public void run() {
-                if (gameStageTask.getCurrentPhase() == GamePhase.DAY_6) return;
-
+                if (gameStageTask.getCurrentPhase() == GamePhase.NIGHT_5) {
+                    this.cancel();
+                }
                 ItemStack iron = new ItemStack(Material.IRON_INGOT, 1);
                 for (Player player : getGamePlayers().keySet()) {
                     if (player.getGameMode() == GameMode.SURVIVAL) {

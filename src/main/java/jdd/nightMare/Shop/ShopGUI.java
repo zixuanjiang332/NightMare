@@ -369,7 +369,7 @@ public class ShopGUI {
     private void renderMisc(Inventory inv, Player player) {
         inv.setItem(getSlot(3, 2), createShopItem(Material.COMPASS, "指南针", 1, 1, Material.GOLD_INGOT));
         inv.setItem(getSlot(3, 5), createLotteryIcon());
-
+        inv.setItem(getSlot(3, 2), createShopItem(Material.BLAZE_ROD, "自救平台", 1, 1, Material.GOLD_INGOT));
         // 【修改】瞬间治疗药水 (瞬间治疗 I)
         inv.setItem(getSlot(4, 2), createPotionItem("瞬间治疗药水", PotionType.HEALING, 2, 12, Material.IRON_INGOT, false));
         // 速度药水 (速度 III)

@@ -110,7 +110,7 @@ public class SpecialItemsListener implements Listener {
                 }
                 event.setCancelled(true);
                 consumeItem(player);
-                player.addPotionEffect(new PotionEffect(PotionEffectType.LEVITATION, 30, 40), true);
+                player.addPotionEffect(new PotionEffect(PotionEffectType.LEVITATION, 30, 26), true);
                 player.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING, 1200, 0), true);
                 player.setMetadata("PARACHUTE_ACTIVE", new FixedMetadataValue(plugin, true));
                 player.playSound(player.getLocation(), Sound.ITEM_ARMOR_EQUIP_ELYTRA, 1f, 1f);

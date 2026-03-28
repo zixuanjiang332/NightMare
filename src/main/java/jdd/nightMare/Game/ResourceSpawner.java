@@ -26,13 +26,12 @@ public class ResourceSpawner {
     private final Material material;
     private int timer;
     private TextDisplay display;
-
+    private GamePhase lastPhase;
     public ResourceSpawner(Location location, Type type) {
         this.location = location;
         this.type = type;
         this.material = (type == Type.GOLD) ? Material.GOLD_INGOT : Material.IRON_INGOT;
         this.timer = type.interval;
-
         // 如果是金锭，初始化倒计时全息图
         if (type == Type.GOLD) {
             createHologram();
@@ -49,20 +48,23 @@ public class ResourceSpawner {
     }
 
     public void tick(GamePhase phase) {
-            if (phase.isNight() && type == Type.SIDE_IRON) {
-                return;
+        if (lastPhase != null && lastPhase.isNight() && !phase.isNight()) {
+            if (type == Type.GOLD) {
+                spawnItem();
+                timer = type.interval;
             }
-            if (phase.isNight()&&type==Type.GOLD)return;
-            if (phase == GamePhase.NIGHT_3 && type == Type.SIDE_IRON) {
-                return;
-            }
+        }
+        lastPhase = phase;
+        if (phase.isNight() && (type == Type.SIDE_IRON || type == Type.GOLD)) {
+            return;
+        }
         timer--;
         if (type == Type.GOLD && display != null) {
             display.setText("§e金锭生成倒计时: §f" + timer + "s");
         }
         if (timer <= 0) {
             spawnItem();
-            timer = type.interval; // 重置计时
+            timer = type.interval;
         }
     }
 

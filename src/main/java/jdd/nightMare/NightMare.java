@@ -9,6 +9,7 @@ import jdd.nightMare.Game.GameMap;
 import jdd.nightMare.GameConfig.*;
 import jdd.nightMare.InitialListener.*;
 import jdd.nightMare.Shop.BrandGUI;
+import org.bukkit.Bukkit;
 import org.bukkit.configuration.serialization.ConfigurationSerialization;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -19,7 +20,7 @@ public final class NightMare extends JavaPlugin {
     private static NightMare instance;
 
     public static final HashMap<Player, GameMap> viewingMaps = new HashMap<>();
-
+    private LobbyBoardManager lobbyBoardManager;
     @Override
     public void onLoad() {
         instance = this;
@@ -37,6 +38,15 @@ public final class NightMare extends JavaPlugin {
         PlayerConfig.init();
         PluginConfigManager.init();
         GameManager gameManager = new GameManager();
+        this.lobbyBoardManager = new LobbyBoardManager(gameManager);
+        this.lobbyBoardManager.startUpdateTask();
+
+        // 热重载保护：给当前所有在线的非游戏玩家发计分板
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            if (!gameManager.hasActiveSession(p)) {
+                lobbyBoardManager.applyLobbyBoard(p);
+            }
+        }
         getServer().getPluginManager().registerEvents(new CombatTracker(this, gameManager),this);
         getServer().getPluginManager().registerEvents(new GameListeners(gameManager), this);
         getServer().getPluginManager().registerEvents(new LobbyListeners(), this);
@@ -73,6 +83,9 @@ public final class NightMare extends JavaPlugin {
         KillMessagesConfig.load();
         MessagesConfig.load();
         LevelsConfig.load();
+    }
+    public LobbyBoardManager getLobbyBoardManager() {
+        return lobbyBoardManager;
     }
 }
 

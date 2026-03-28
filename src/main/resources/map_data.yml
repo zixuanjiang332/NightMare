@@ -1,6 +1,6 @@
 test-map:
   id: testmap
-  spectator-teleport-location: [0.10,87.10,0.10]
+  spectator-teleport-location: [0.10,79.10,0.10]
   spawners:
     - { type: "IRON", location: "world,-45,78,0" }
     - { type: "IRON", location: "world,45,78,0" }

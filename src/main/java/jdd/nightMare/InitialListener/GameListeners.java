@@ -31,9 +31,11 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.*;
+import org.bukkit.event.inventory.CraftItemEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.*;
 import org.bukkit.event.server.BroadcastMessageEvent;
+import org.bukkit.event.weather.WeatherChangeEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
@@ -68,6 +70,7 @@ public class GameListeners implements Listener {
         }
         Player player = event.getPlayer();
         String targetWorld = event.getTo().getWorld().getName();
+        if (targetWorld.equals("world_nether"))event.setCancelled(true);
         if (targetWorld.equals("world")) {
             if (player.getInventory().contains(Material.RED_BED)) {
                 player.getInventory().remove(Material.RED_BED);
@@ -165,20 +168,17 @@ public class GameListeners implements Listener {
         boolean bedAlive = team.isBedAlive();
         List<ItemStack> drops = event.getDrops();
         List<ItemStack> toSave = new ArrayList<>();
-        // 迭代器遍历，安全地分类物品
         Iterator<ItemStack> iterator = drops.iterator();
         while (iterator.hasNext()) {
             ItemStack item = iterator.next();
             if (item == null) continue;
             Material type = item.getType();
-            // 判定哪些是“资源”（需要掉在地上给别人的）
             boolean isResource = (type == Material.GOLD_INGOT) || (!bedAlive && type == Material.IRON_INGOT);
             if (!isResource) {
                 toSave.add(item.clone());
                 iterator.remove();
             }
         }
-        // 将要保留的物品存入 Map
         if (!toSave.isEmpty()) {
             savedItems.put(player.getUniqueId(), toSave);
         }
@@ -225,7 +225,6 @@ public class GameListeners implements Listener {
                     block.setType(Material.AIR);
                 }
             }
-            // 移除时的破碎音效
         }, 20 * 5L);
     }
     @EventHandler
@@ -233,10 +232,18 @@ public class GameListeners implements Listener {
         Player player = event.getPlayer();
         if (gameManager.hasActiveSession(player)){
             GameTeam team = gameManager.getPlayerSession(player).getGameTeam();
-            Location teamSpawnLocation = gameManager.getPlayerSession( player).getGame().getTeamSpawnLocations().get(team);
-            event.setRespawnLocation(teamSpawnLocation);
+            PlayerSession session = gameManager.getPlayerSession(player);
+            if (session == null || session.getGame() == null) return;
+            if (team == null) return;
+            Location baseLoc = gameManager.getPlayerSession(player).getGame().getTeamSpawnLocations().get(team);
+            Location centerLoc = new Location(baseLoc.getWorld(), 0, baseLoc.getY(), 0);
+            float lookAtCenterYaw = calculateLookAtYaw(baseLoc, centerLoc);
+            Location finalRespawnLoc = baseLoc.clone();
+            finalRespawnLoc.setYaw(lookAtCenterYaw);
+            finalRespawnLoc.setPitch(0f);
+            event.setRespawnLocation(finalRespawnLoc);
             if (team.isBedAlive()){
-                startRebirthSequence(player,team);
+                startRebirthSequence(player,finalRespawnLoc);
             }
             else{
                 Game game = gameManager.getPlayerSession(player).getGame();
@@ -244,7 +251,7 @@ public class GameListeners implements Listener {
             }
         }
     }
-    public void startRebirthSequence(Player player,GameTeam team) {
+    public void startRebirthSequence(Player player,Location spawnLocation) {
         player.setGameMode(GameMode.SPECTATOR);
         new BukkitRunnable() {
             int timeLeft = 5;
@@ -255,23 +262,18 @@ public class GameListeners implements Listener {
                     player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
                     timeLeft--;
                 } else {
-                    // 3. 执行重生
-                    rebirth(player);
+                    rebirth(player,spawnLocation);
                     this.cancel();
                 }
             }
         }.runTaskTimer(NightMare.getInstance(), 0L, 20L);
     }
 
-    private void rebirth(Player player) {
-        GameTeam team = gameManager.getPlayerSession(player).getGameTeam();
-        Location teamSpawnLocation = gameManager.getPlayerSession(player).getGame().getTeamSpawnLocations().get(team);
-
-        player.teleport(teamSpawnLocation);
+    private void rebirth(Player player,Location spawnLocation) {
+        player.teleport(spawnLocation);
         player.setGameMode(GameMode.SURVIVAL);
         player.setHealth(player.getAttribute(Attribute.MAX_HEALTH).getBaseValue());
         player.setFoodLevel(20);
-        // --- 新增：发还暂存物品 ---
         UUID uuid = player.getUniqueId();
         if (savedItems.containsKey(uuid)) {
             List<ItemStack> items = savedItems.get(uuid);
@@ -286,49 +288,34 @@ public class GameListeners implements Listener {
                     player.getInventory().addItem(item);
                 }
             }
-            // 领完后清除记录，防止刷物品
             savedItems.remove(uuid);
         }
     }
-    @EventHandler
-    public void onPlayerFace(PlayerRespawnEvent event) {
-        Player player = event.getPlayer();
-        // 1. 获取玩家的队伍和游戏数据
-        PlayerSession session = gameManager.getPlayerSession(player);
-        if (session == null || session.getGame() == null) return;
-        GameTeam team = session.getGame().getTeam(player);
-        if (team == null) return;
-        // 2. 获取该队伍的默认出生点 (只取 X, Y, Z 坐标)
-        // 假设你的 team 对象里存了队伍基地的坐标，比如 team.getSpawnLocation()
-        Location baseLoc = gameManager.getPlayerSession(player).getGame().getTeamSpawnLocations().get(team);
-        // 3. 假设地图的中心点（中岛）坐标是 (0, 64, 0)
-        // 你可以根据实际情况替换为 session.getGame().getCenterLocation()
-        Location centerLoc = new Location(baseLoc.getWorld(), 0, baseLoc.getY(), 0);
-        // 4. 计算从基地看向中心的 Yaw 角度
-        float lookAtCenterYaw = calculateLookAtYaw(baseLoc, centerLoc);
-        // 5. 创建最终的重生点 (保留原有的 XYZ，修改 Yaw 和 Pitch)
-        Location finalRespawnLoc = baseLoc.clone();
-        finalRespawnLoc.setYaw(lookAtCenterYaw);
-        finalRespawnLoc.setPitch(0f); // 0 表示平视前方，不低头也不抬头
-        // 6. 强制设置重生点
-        event.setRespawnLocation(finalRespawnLoc);
-    }
-    /**
-     * 万能数学公式：计算从起点看向终点的 Yaw 角度
-     */
     private float calculateLookAtYaw(Location from, Location to) {
         double dx = to.getX() - from.getX();
         double dz = to.getZ() - from.getZ();
-
-        // 使用 Math.atan2 计算弧度，然后转化为角度
         double angle = Math.atan2(-dx, dz);
         return (float) Math.toDegrees(angle);
+    }
+    @EventHandler
+    public void WeatherChange(WeatherChangeEvent event) {
+        event.setCancelled(true);
     }
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         event.setJoinMessage(null);
         Player player = event.getPlayer();
+        NightMare.getInstance().getLobbyBoardManager().applyLobbyBoard(player);
+
         player.getInventory().clear();
+        player.sendTitle("§c§l☄ §e§l零月牙老冯爆炸加升天 §c§l☄", "§b✨ 欢迎来到复刻噩梦空间 ✨", 10, 60, 20);
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                player.playSound(player.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 1.0f, 0.8f);
+                player.spawnParticle(Particle.EXPLOSION, player.getLocation(), 2, 0.5, 0.5, 0.5, 0);
+            }
+        }.runTaskLater(NightMare.getInstance(), 20 * 4L);
         if (gameManager.hasActiveSession(event.getPlayer())){
             gameManager.getPlayerSession( player).getGame().playerLeave( player);
         }
@@ -479,8 +466,33 @@ public class GameListeners implements Listener {
         }
     }
     @EventHandler
+    public void onWorkbenchInteract(PlayerInteractEvent event) {
+        if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
+           Block clickedBlock = event.getClickedBlock();
+            if (clickedBlock != null && clickedBlock.getType() == Material.CRAFTING_TABLE) {
+                Player player = event.getPlayer();
+                if (gameManager.hasActiveSession(player)) {
+                    event.setCancelled(true);
+                }
+            }
+        }
+    }
+    @EventHandler
+    public void onPlayerCraft(CraftItemEvent event) {
+        if (event.getWhoClicked() instanceof Player player) {
+            if (gameManager.hasActiveSession(player)) {
+                event.setCancelled(true);
+                player.sendMessage("§c[NightMare] 比赛中禁止使用合成功能！");
+            }
+        }
+    }
+    @EventHandler
     public void onBlockPlace(BlockPlaceEvent event){
         Player player = event.getPlayer();
+        if (event.getBlockPlaced().getLocation().getBlockY()>=200){
+            event.setCancelled(true);
+            player.sendMessage("§c高度过高(200格)无法放置方块！");
+        }
         if (gameManager.hasActiveSession(player)){
             if (!gameManager.getPlayerSession(player).getGame().isActive())
                 event.setCancelled(true);
@@ -610,7 +622,6 @@ public class GameListeners implements Listener {
             if (player.hasMetadata("TNT_LAUNCHED")) {
                 event.setCancelled(true);
                 player.removeMetadata("TNT_LAUNCHED", NightMare.getInstance());
-                // 提示：你可以考虑在这里加一句音效，让玩家知道自己触发了安全着陆
             }
         }
     }
@@ -656,13 +667,7 @@ public class GameListeners implements Listener {
     @EventHandler
     public void onUnifiedChat(AsyncChatEvent event) {
         Player player = event.getPlayer();
-
-        // 【防爆修复 1：异步线程安全】直接获取 Session，防止玩家瞬间离线导致 NPE
         PlayerSession session = gameManager.getPlayerSession(player);
-
-        // ==========================================
-        // 1. 大厅聊天逻辑 (玩家不在游戏中，或数据已销毁)
-        // ==========================================
         if (session == null || session.getGame() == null) {
             event.viewers().removeIf(viewer -> {
                 if (viewer instanceof Player p) {
@@ -677,10 +682,6 @@ public class GameListeners implements Listener {
             );
             return;
         }
-
-        // ==========================================
-        // 2. 游戏内聊天逻辑
-        // ==========================================
         Game game = session.getGame();
         GameTeam team = session.getGameTeam();
 
@@ -689,17 +690,12 @@ public class GameListeners implements Listener {
 
         boolean isSpectator = game.isSpectator(player);
         boolean isWaitingLobby = game.isWaiting() || game.isStarting();
-
-        // 【防爆修复 2：加入游戏结束状态】
         boolean isGameEnded = game.hasEnded();
 
         NamedTextColor teamColor = getNamedTextColor(team != null ? team.getTeamName() : "gray");
-
-        // 安全清理：只移除玩家观众，保留后台 Console 的监控能力
         event.viewers().removeIf(viewer -> viewer instanceof Player);
 
         if (isWaitingLobby || isGameEnded) {
-            // --- A. 等待区 & 结算区 (所有人可见，自由发言，跨队打GG) ---
             event.viewers().addAll(game.getInGamePlayers());
             String prefix = isWaitingLobby ? "[等待区] " : "[结算区] ";
             NamedTextColor prefixColor = isWaitingLobby ? NamedTextColor.AQUA : NamedTextColor.LIGHT_PURPLE;
@@ -712,7 +708,6 @@ public class GameListeners implements Listener {
             );
 
         } else if (isSpectator) {
-            // --- B. 旁观者频道 ---
             event.viewers().addAll(game.getSpectators());
             event.renderer((source, sourceDisplayName, message, viewer) ->
                     Component.text("[旁观] ", NamedTextColor.GRAY)
@@ -722,11 +717,7 @@ public class GameListeners implements Listener {
             );
 
         } else if (isShout) {
-            // --- C. 全局喊话频道 ---
             event.viewers().addAll(game.getInGamePlayers());
-
-            // 【防爆修复 3：完美保留富文本】
-            // 使用正则匹配中英文感叹号以及可能带有的空格 (如 "! 你好") 并将其透明替换，绝不会破坏鼠标悬浮等交互事件！
             Component realMessage = event.message().replaceText(builder ->
                     builder.match("^[!！]\\s*").replacement("").once()
             );
@@ -738,7 +729,6 @@ public class GameListeners implements Listener {
             );
 
         } else {
-            // --- D. 队伍私聊频道 (默认) ---
             if (team != null) {
                 event.viewers().addAll(team.getTeamPlayers());
                 event.renderer((source, sourceDisplayName, message, viewer) ->
@@ -750,7 +740,6 @@ public class GameListeners implements Listener {
             }
         }
     }
-    // 辅助方法：将队伍名字转换为 Paper 原生颜色
     private NamedTextColor getNamedTextColor(String teamName) {
         if (teamName == null) return NamedTextColor.GRAY;
         return switch (teamName.toLowerCase()) {
@@ -785,16 +774,13 @@ public class GameListeners implements Listener {
         Player player = event.getPlayer();
         if (!gameManager.hasActiveSession(player))
             return;
-
         PlayerSession session = gameManager.getPlayerSession(player);
         if (session.getGame().isSpectator(player) || !session.getGame().isActive())
             event.setCancelled(true);
     }
     @EventHandler
     public void onFoodLevelChange(FoodLevelChangeEvent event) {
-        // 检查实体是否为玩家
         if (event.getEntity() instanceof Player) {
-            // 取消饱食度改变事件（饱食度将保持不变）
             event.setCancelled(true);
             Player player = ((Player) event.getEntity()).getPlayer();
             player.setFoodLevel(20);
@@ -803,10 +789,8 @@ public class GameListeners implements Listener {
     @EventHandler
     public void onItemDrop(PlayerDropItemEvent event) {
         Player player = event.getPlayer();
-        // 1. 基础安全检查：如果玩家不在游戏中，不处理（或根据你的需求处理）
         if (!gameManager.hasActiveSession(player)) return;
         PlayerSession session = gameManager.getPlayerSession(player);
-        // 2. 旁观者禁止丢弃任何东西
         if (session.getGame().isSpectator(player)) {
             event.setCancelled(true);
             return;

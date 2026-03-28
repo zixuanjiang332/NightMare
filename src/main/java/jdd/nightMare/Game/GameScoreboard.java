@@ -233,6 +233,7 @@ public class GameScoreboard {
         for (Team team : board.getTeams()) {
             team.unregister();
         }
+        NightMare.getInstance().getLobbyBoardManager().applyLobbyBoard(player);
     }
     private String formatTime(int seconds) {
         return String.format("%02d:%02d", seconds / 60, seconds % 60);
