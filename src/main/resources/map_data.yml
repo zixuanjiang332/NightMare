@@ -48,10 +48,6 @@ Luori:
       - { type: "IRON", location: "world,-4,67,-87" }
       - { type: "IRON", location: "world,-87,67,4" }
       - { type: "IRON", location: "world,4,67,87" }
-      - { type: "IRON", location: "world,10,78,15" }
-      - { type: "IRON", location: "world,15,78,-10" }
-      - { type: "IRON", location: "world,-10,78,-15" }
-      - { type: "IRON", location: "world,-15,78,10" }
       # 4个副岛刷新点
       - { type: "SIDE_IRON", location: "world,66,67,66" }
       - { type: "SIDE_IRON", location: "world,-66,67,66" }

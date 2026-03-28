@@ -562,7 +562,7 @@ public class GameListeners implements Listener {
         Player player = event.getPlayer();
         item.setAmount(item.getAmount() - 1);
         TNTPrimed tnt = player.getWorld().spawn(player.getEyeLocation(), TNTPrimed.class);
-        tnt.setYield(3.5F);
+        tnt.setYield(3.0F);
         Vector throwVelocity = player.getLocation().getDirection().multiply(2.8);
         tnt.setVelocity(throwVelocity);
         tnt.setFuseTicks(15);
@@ -574,15 +574,14 @@ public class GameListeners implements Listener {
         if (!(event.getEntity() instanceof TNTPrimed)) return;
         Location explodeLoc = event.getLocation();
         double radius = 8.0;
-
         for (Entity entity : event.getEntity().getNearbyEntities(radius, radius, radius)) {
             if (entity instanceof Player victim) {
                 Vector drag = victim.getLocation().toVector().subtract(explodeLoc.toVector());
                 double distance = drag.length();
                 if (distance < 0.1) continue;
                 drag.normalize();
-                double power = 6.0 * (1 - (distance / radius));
-                drag.setY(drag.getY() + 0.5);
+                double power = 5 * (1 - (distance / radius));
+                drag.setY(drag.getY() + 0.35);
                 victim.setVelocity(drag.multiply(power));
                 victim.setMetadata("TNT_LAUNCHED", new FixedMetadataValue(NightMare.getInstance(), true));
                 new BukkitRunnable() {
@@ -621,7 +620,6 @@ public class GameListeners implements Listener {
     public void onEntityExplode(EntityExplodeEvent event) {
         Game game = gameManager.getGameFromWorld(event.getEntity().getWorld());
         event.blockList().removeIf(block -> {
-            // 如果被炸的方块是床，或者不在玩家放置的列表里，就保护它（不让它被炸毁）
             boolean isBed = block.getType().name().endsWith("_BED");
             boolean isGlass = block.getType().name().contains("GLASS");
             boolean isPlayerPlaced = game.getPlacedBlocks().contains(block.getLocation());
@@ -694,7 +692,7 @@ public class GameListeners implements Listener {
 
             event.renderer((source, sourceDisplayName, message, viewer) ->
                     Component.text(prefix, prefixColor)
-                            .append(Component.text(player.getName(), teamColor)) // 在等待/结算区也显示队伍颜色
+                            .append(Component.text(player.getName(), teamColor))
                             .append(Component.text(": ", NamedTextColor.WHITE))
                             .append(message.color(NamedTextColor.WHITE))
             );

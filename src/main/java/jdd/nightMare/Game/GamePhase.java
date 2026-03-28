@@ -5,8 +5,7 @@ public enum GamePhase {
     DAY_2("Day2"), NIGHT_2("Night2"),
     DAY_3("Day3(自毁)"), NIGHT_3("Night3"),
     DAY_4("Day4"), NIGHT_4("Night4"),
-    DAY_5("Day5(收缩)"), NIGHT_5("Night5"),
-    DAY_6("Day6(终局)");
+    DAY_5("Day5"), NIGHT_5("Night5(终局)");
     public boolean isNight() {
         return this.name().startsWith("NIGHT");
     }

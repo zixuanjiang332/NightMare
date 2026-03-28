@@ -32,9 +32,6 @@ public class SpecialItemsListener implements Listener {
 
     private final NightMare plugin = NightMare.getInstance();
     private final GameManager gameManager;
-    // 存储当前活跃的行走平台方块
-    private final java.util.Map<UUID, Set<Location>> activePlatformBlocks = new java.util.HashMap<>();
-    // 存储所有蹦床的方块，用于免疫掉落蹦床时的瞬间伤害
     private final Set<Location> globalTrampolineBlocks = new HashSet<>();
     private final Map<Location, UUID> activeTraps = new HashMap<>();
     public SpecialItemsListener(GameManager gameManager) {
@@ -100,7 +97,6 @@ public class SpecialItemsListener implements Listener {
 
             if (!item.hasItemMeta()) return;
             String displayName = PlainTextComponentSerializer.plainText().serialize(item.getItemMeta().displayName());
-
             // --- 1. 降落伞 ---
             if (displayName.contains("降落伞")) {
                 if (coolDowns.get("降落伞")>0){
@@ -117,9 +113,8 @@ public class SpecialItemsListener implements Listener {
                 player.sendMessage("§b[NightMare] §f降落伞已开启！(按 Shift 可主动收伞)");
                 coolDowns.put("降落伞", 45);
             }
-
-            else if (displayName.contains("行走平台")) {
-                if (coolDowns.get("行走平台")>0){
+            else if  (displayName.contains("行走平台")) {
+                if (coolDowns.getOrDefault("行走平台", 0) > 0) {
                     player.sendMessage("§c[NightMare] 行走平台冷却中！冷却剩余:§f"+coolDowns.get("行走平台")+"s");
                     event.setCancelled(true);
                     return;
@@ -127,8 +122,64 @@ public class SpecialItemsListener implements Listener {
                 event.setCancelled(true);
                 consumeItem(player);
                 player.setMetadata("WALKING_PLATFORM", new FixedMetadataValue(plugin, System.currentTimeMillis() + 5000));
-                updateWalkingPlatform(player, player.getLocation().subtract(0, 1, 0));
-                player.sendMessage("§a[NightMare] §f行走平台激活！持续5秒 (按 Shift 可提前取消)");
+                new BukkitRunnable() {
+                    Map<Location, Integer> activeBlocks = new HashMap<>();
+                    @Override
+                    public void run() {
+                        if (!player.isOnline() || !player.hasMetadata("WALKING_PLATFORM")) {
+                            for (Location loc : activeBlocks.keySet()) {
+                                if (loc.getBlock().getType() == getPlayerTeamWool(player)) loc.getBlock().setType(Material.AIR);
+                            }
+                            this.cancel();
+                            return;
+                        }
+
+                        long expiry = player.getMetadata("WALKING_PLATFORM").get(0).asLong();
+                        if (System.currentTimeMillis() > expiry) {
+                            player.removeMetadata("WALKING_PLATFORM", plugin);
+                        }
+
+                        Set<Location> targetBlocks = new HashSet<>();
+                        if (player.hasMetadata("WALKING_PLATFORM")) {
+                            Location center = player.getLocation().getBlock().getLocation().subtract(0, 1, 0);
+                            for (int x = -2; x <= 2; x++) {
+                                for (int z = -2; z <= 2; z++) {
+                                    if (Math.abs(x) <= 1 || Math.abs(z) <= 1) {
+                                        targetBlocks.add(center.clone().add(x, 0, z));
+                                    }
+                                }
+                            }
+                        }
+
+                        Game game = gameManager.getPlayerSession(player).getGame();
+                        for (Location loc : targetBlocks) {
+                            Block b = loc.getBlock();
+                            if (b.getType().isAir() || b.getType() == getPlayerTeamWool(player)) {
+                                if (b.getType().isAir()) {
+                                    b.setType(getPlayerTeamWool(player));
+                                    game.getPlacedBlocks().add(loc);
+                                }
+                                activeBlocks.put(loc, 15);
+                            }
+                        }
+
+                        Iterator<Map.Entry<Location, Integer>> it = activeBlocks.entrySet().iterator();
+                        while (it.hasNext()) {
+                            Map.Entry<Location, Integer> entry = it.next();
+                            Location loc = entry.getKey();
+                            int ticksLeft = entry.getValue() - 1;
+                            if (ticksLeft <= 0) {
+                                if (loc.getBlock().getType() == getPlayerTeamWool(player)) {
+                                    loc.getBlock().setType(Material.AIR);
+                                }
+                                it.remove();
+                            } else {
+                                entry.setValue(ticksLeft);
+                            }
+                        }
+                    }
+                }.runTaskTimer(plugin, 0L, 1L);
+                player.sendMessage("§a[NightMare] §f行走平台激活！持续5秒");
                 coolDowns.put("行走平台", 30);
             }
 
@@ -147,7 +198,7 @@ public class SpecialItemsListener implements Listener {
                 for (int x = -3; x <= 3; x++) {
                     for (int z = -3; z <= 3; z++) {
                         Block block = world.getBlockAt(centerX + x, centerY, centerZ + z);
-                        if (block.getType() != Material.AIR) {
+                        if (!block.getType().isAir()) {
                             hasObstacle = true;
                             break;
                         }
@@ -180,6 +231,39 @@ public class SpecialItemsListener implements Listener {
                 scrollToRefund.setAmount(1);
                 consumeItem(player);
                 startRecallTask(player, scrollToRefund,coolDowns);
+            }
+            else if (displayName.contains("盾墙")) {
+                if (coolDowns.getOrDefault("盾墙", 0) > 0) {
+                    player.sendMessage("§c[NightMare] 盾墙冷却中！冷却剩余:§f" + coolDowns.get("盾墙") + "s");
+                    event.setCancelled(true);
+                    return;
+                }
+                event.setCancelled(true);
+                consumeItem(player);
+                Location eyeLoc = player.getEyeLocation();
+                Vector dir = eyeLoc.getDirection().setY(0).normalize();
+                Location centerBase = player.getLocation().add(dir.multiply(2)); // 前方两格
+                Vector right = new Vector(-dir.getZ(), 0, dir.getX()).normalize();
+                Game game = gameManager.getPlayerSession(player).getGame();
+                boolean placed = false;
+                for (int w = -2; w <= 2; w++) {
+                    for (int h = 0; h < 3; h++) {
+                        Location blockLoc = centerBase.clone().add(right.clone().multiply(w)).add(0, h, 0);
+                        Block block = blockLoc.getBlock();
+                        if (block.getType() == Material.AIR || block.getType().name().endsWith("_WATER") || block.getType() == Material.TALL_GRASS) {
+                            block.setType(Material.SANDSTONE);
+                            game.getPlacedBlocks().add(block.getLocation());
+                            placed = true;
+                        }
+                    }
+                }
+
+                if (placed) {
+                    player.playSound(player.getLocation(), Sound.BLOCK_STONE_PLACE, 1.0f, 0.8f);
+                    player.spawnParticle(Particle.CLOUD, centerBase.add(0, 1, 0), 20, 1, 1, 1, 0.1);
+                }
+                player.sendMessage("§a[NightMare] §f盾墙已部署！");
+                coolDowns.put("盾墙", 20);
             }
         }
     }
@@ -293,7 +377,6 @@ public class SpecialItemsListener implements Listener {
                 player.sendMessage("§7[NightMare] 已手动收起降落伞。");
             }
             if (player.hasMetadata("WALKING_PLATFORM")) {
-                clearWalkingPlatform(player);
                 player.removeMetadata("WALKING_PLATFORM", plugin);
                 player.sendMessage("§7[NightMare] 已手动收起行走平台。");
             }
@@ -325,16 +408,16 @@ public class SpecialItemsListener implements Listener {
             egg.setVelocity(egg.getVelocity().multiply(1.0));
             new BukkitRunnable() {
                 int ticks = 0;
+                Location lastLoc = startLoc.clone();
                 @Override
                 public void run() {
-                    // 终止条件 A：落地或撞墙
                     if (egg.isDead() || !egg.isValid() || egg.isOnGround()) {
                         this.cancel();
                         return;
                     }
                     Location currentLoc = egg.getLocation();
 
-                    if (currentLoc.distanceSquared(startLoc) > 275 || ticks > 60) {
+                    if (currentLoc.distanceSquared(startLoc) > 900 || ticks > 60) {
                         egg.remove();
                         this.cancel();
                         return;
@@ -343,25 +426,30 @@ public class SpecialItemsListener implements Listener {
                     Vector velocity = egg.getVelocity().setY(0).normalize();
                     if (velocity.lengthSquared() > 0) {
                         Vector right = new Vector(-velocity.getZ(), 0, velocity.getX()).normalize();
-                        for (int w = -1; w <= 1; w++) {
-                            Location blockLoc = currentLoc.clone().subtract(0, 2, 0).add(right.clone().multiply(w));
-                            Block block = blockLoc.getBlock();
-
-                            if (block.getType() == Material.AIR || block.getType().name().endsWith("_WATER")) {
-                                block.setType(teamWool);
-                                game.getPlacedBlocks().add(block.getLocation());
-                            }
-                            if (w == 0) {
-                                Block bottomBlock = blockLoc.clone().subtract(0, 1, 0).getBlock();
-                                if (bottomBlock.getType() == Material.AIR || bottomBlock.getType().name().endsWith("_WATER")) {
-                                    bottomBlock.setType(teamWool);
-                                    game.getPlacedBlocks().add(bottomBlock.getLocation());
+                        double distance = lastLoc.distance(currentLoc);
+                        int steps = Math.max(1, (int) Math.ceil(distance * 2.0));
+                        Vector stepVector = currentLoc.toVector().subtract(lastLoc.toVector()).multiply(1.0 / steps);
+                        for (int i = 1; i <= steps; i++) {
+                            Location stepLoc = lastLoc.clone().add(stepVector.clone().multiply(i));
+                            for (int w = -1; w <= 1; w++) {
+                                Location blockLoc = stepLoc.clone().subtract(0, 2, 0).add(right.clone().multiply(w));
+                                Block block = blockLoc.getBlock();
+                                if (block.getType() == Material.AIR || block.getType().name().endsWith("_WATER")) {
+                                    block.setType(teamWool);
+                                    game.getPlacedBlocks().add(block.getLocation());
+                                }
+                                if (w == 0) {
+                                    Block bottomBlock = blockLoc.clone().subtract(0, 1, 0).getBlock();
+                                    if (bottomBlock.getType() == Material.AIR || bottomBlock.getType().name().endsWith("_WATER")) {
+                                        bottomBlock.setType(teamWool);
+                                        game.getPlacedBlocks().add(bottomBlock.getLocation());
+                                    }
                                 }
                             }
                         }
                         currentLoc.getWorld().playSound(currentLoc, Sound.BLOCK_WOOL_PLACE, 0.5f, 1.2f);
                     }
-
+                    lastLoc = currentLoc.clone(); // 更新上一帧位置
                     ticks++;
                 }
             }.runTaskTimer(NightMare.getInstance(), 1L, 1L);
@@ -382,103 +470,32 @@ public class SpecialItemsListener implements Listener {
                 && !player.hasPotionEffect(PotionEffectType.LEVITATION)) {
             player.removePotionEffect(PotionEffectType.SLOW_FALLING);
             player.removeMetadata("PARACHUTE_ACTIVE", plugin);
-            // 可选：给个落地收伞的音效反馈
             player.playSound(player.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 1f, 1f);
         }
-        // 行走平台动态生成
-        if (player.hasMetadata("WALKING_PLATFORM")) {
-            long expiry = player.getMetadata("WALKING_PLATFORM").get(0).asLong();
-            if (System.currentTimeMillis() > expiry) {
-                clearWalkingPlatform(player);
-                player.removeMetadata("WALKING_PLATFORM", plugin);
-                return;
-            }
-            if (event.getFrom().getBlockX() != event.getTo().getBlockX() ||
-                    event.getFrom().getBlockZ() != event.getTo().getBlockZ() ||
-                    event.getFrom().getBlockY() != event.getTo().getBlockY()) {
-                updateWalkingPlatform(player, player.getLocation().subtract(0, 1, 0));
-            }
-        }
         Block blockAtFeet = player.getLocation().getBlock();
-        // 检查脚下的方块是不是绊线
         if (blockAtFeet.getType() == Material.TRIPWIRE) {
             Location trapLoc = blockAtFeet.getLocation();
-            // 检查这个绊线是不是玩家布置的陷阱
             if (activeTraps.containsKey(trapLoc)) {
                 UUID ownerUUID = activeTraps.get(trapLoc);
                 Player owner = Bukkit.getPlayer(ownerUUID);
-                // 判定是否为敌人 (如果主人离线了，判定为必须触发)
                 boolean isEnemy = true;
                 if (owner != null) {
                     isEnemy = !isTeammate(owner, player);
                 }
-                // 只有生存模式的敌人踩上去才会触发
                 if (isEnemy && player.getGameMode() == GameMode.SURVIVAL) {
-                    // 1. 给敌人施加负面效果
                     player.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 80, 0));
                     player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 80, 1));
                     trapLoc.getWorld().playSound(trapLoc, Sound.ENTITY_ELDER_GUARDIAN_CURSE, 1f, 1f);
-                    // 2. 通知主人
                     if (owner != null && owner.isOnline()) {
                         owner.sendTitle("§c§l陷阱被触发！", "§f" + player.getName() + " §7踩中了你的陷阱线！", 10, 60, 10);
                         owner.playSound(owner.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 2f);
                     }
-                    // 3. 销毁陷阱（阅后即焚）
                     activeTraps.remove(trapLoc);
                     blockAtFeet.setType(Material.AIR);
                 }
             }
         }
     }
-
-    // ==============================================
-    //               具体道具的实现方法
-    // ==============================================
-
-    /**
-     * 行走平台：生成 # 字形 (5x5去掉四角)
-     */
-    private void updateWalkingPlatform(Player player, Location center) {
-        UUID uuid = player.getUniqueId();
-        Set<Location> newBlocks = new HashSet<>();
-        Set<Location> oldBlocks = activePlatformBlocks.getOrDefault(uuid, new HashSet<>());
-
-        for (int x = -2; x <= 2; x++) {
-            for (int z = -2; z <= 2; z++) {
-                // 如果 X 或 Z 的绝对值 <= 1，则属于 3x3 中心及上下左右延伸，构成 # 字形
-                if (Math.abs(x) <= 1 || Math.abs(z) <= 1) {
-                    Location loc = center.clone().add(x, 0, z).getBlock().getLocation();
-                    newBlocks.add(loc);
-                }
-            }
-        }
-
-        for (Location oldLoc : oldBlocks) {
-            if (!newBlocks.contains(oldLoc)) {
-                Block b = oldLoc.getBlock();
-                if (b.getType() == getPlayerTeamWool(player)) b.setType(Material.AIR);
-            }
-        }
-        for (Location newLoc : newBlocks) {
-            Block b = newLoc.getBlock();
-            if (b.getType() == Material.AIR) b.setType(getPlayerTeamWool(player));
-        }
-        activePlatformBlocks.put(uuid, newBlocks);
-        if (oldBlocks.isEmpty()) player.playSound(center, Sound.BLOCK_WOOL_PLACE, 0.5f, 1.2f);
-    }
-
-    private void clearWalkingPlatform(Player player) {
-        Set<Location> blocks = activePlatformBlocks.remove(player.getUniqueId());
-        if (blocks != null) {
-            for (Location loc : blocks) {
-                if (loc.getBlock().getType() == getPlayerTeamWool(player)) loc.getBlock().setType(Material.AIR);
-            }
-        }
-    }
-
-    /**
-     * 蹦床：7x7范围，去除抗性，依赖元数据防摔
-     */
     private void createLargeTrampoline(Location center) {
         final Material mat = Material.LIME_WOOL;
         final Set<Location> tBlocks = new HashSet<>();
@@ -487,14 +504,13 @@ public class SpecialItemsListener implements Listener {
         for (int x = -3; x <= 3; x++) {
             for (int z = -3; z <= 3; z++) {
                 Block b = center.clone().add(x, 0, z).getBlock();
-                if (b.getType() == Material.AIR || b.getType() == Material.TALL_GRASS) {
+                if (b.getType().isAir() || b.getType() == Material.TALL_GRASS) {
                     b.setType(mat);
                     tBlocks.add(b.getLocation());
                     globalTrampolineBlocks.add(b.getLocation()); // 加入全局保护池
                 }
             }
         }
-
         new BukkitRunnable() {
             int ticks = 0;
             @Override
@@ -511,11 +527,10 @@ public class SpecialItemsListener implements Listener {
                 for (Player p : Bukkit.getOnlinePlayers()) {
                     Location underLoc = p.getLocation().subtract(0, 0.1, 0).getBlock().getLocation();
                     if (tBlocks.contains(underLoc)) {
-                        p.setVelocity(new Vector(0, 2.5, 0)); // 7x7蹦床力度稍加
-                        p.setFallDistance(0); // 清空已有的下落距离
+                        p.setVelocity(new Vector(0, 2.5, 0));
+                        p.setFallDistance(0);
                         p.setMetadata("BOUNCED", new FixedMetadataValue(plugin, true)); // 标记用于免疫下次落地伤害
                         p.playSound(p.getLocation(), Sound.ENTITY_SLIME_JUMP, 1f, 1.2f);
-                        // 移除了 PotionEffectType.RESISTANCE，玩家不再无敌
                     }
                 }
                 ticks += 2;

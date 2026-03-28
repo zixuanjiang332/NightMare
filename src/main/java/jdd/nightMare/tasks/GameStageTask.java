@@ -40,6 +40,32 @@ public class GameStageTask extends BukkitRunnable {
                     p.getInventory().addItem(new ItemStack(Material.OAK_PLANKS, 8));
                     p.sendMessage("§e[烙印] 保卫者物资已送达！");
                 }
+                if (session.hasBrand(BrandType.TONGUE_OF_FIRE.id)) {
+                    ItemStack potion = new ItemStack(Material.POTION);
+                    org.bukkit.inventory.meta.PotionMeta potionMeta = (org.bukkit.inventory.meta.PotionMeta) potion.getItemMeta();
+                    potionMeta.addCustomEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.STRENGTH, 200, 0), true);
+                    potionMeta.setColor(org.bukkit.Color.MAROON);
+                    potionMeta.displayName(net.kyori.adventure.text.Component.text("§c力量药水 (10秒)"));
+                    potion.setItemMeta(potionMeta);
+                    p.getInventory().addItem(potion);
+                    ItemStack fireCharge = new ItemStack(Material.FIRE_CHARGE);
+                    org.bukkit.inventory.meta.ItemMeta fireMeta = fireCharge.getItemMeta();
+                    fireMeta.displayName(net.kyori.adventure.text.Component.text("§6火焰弹"));
+                    fireCharge.setItemMeta(fireMeta);
+                    p.getInventory().addItem(fireCharge);
+                    p.sendMessage("§c[烙印] 火舌物资已送达！");
+                }
+                if (session.hasBrand(BrandType.CLOUD_PIERCING_ARROW.id)) {
+                    ItemStack bow = new ItemStack(Material.BOW);
+                    org.bukkit.inventory.meta.ItemMeta meta = bow.getItemMeta();
+                    if (meta instanceof org.bukkit.inventory.meta.Damageable damageable) {
+                        damageable.setDamage(Material.BOW.getMaxDurability() - 3);
+                    }
+                    bow.setItemMeta(meta);
+                    p.getInventory().addItem(bow);
+                    p.getInventory().addItem(new ItemStack(Material.ARROW, 4));
+                    p.sendMessage("§b[烙印] 穿云箭物资已送达！");
+                }
             }
 
         }
@@ -158,9 +184,9 @@ public class GameStageTask extends BukkitRunnable {
     private void startWorldBorderShrink() {
         World world = game.getMap().getBukkitWorld();
         WorldBorder border = world.getWorldBorder();
-        border.setCenter(0.5, 0.5); // 设置中心点
-        border.setSize(250);                // 初始大小
-        border.setDamageAmount(1); // 越界每秒扣血量
+        border.setCenter(0.5, 0.5);
+        border.setSize(250);
+        border.setDamageAmount(1);
         border.setWarningDistance(2);
         border.setSize(1, 180);
     }

@@ -249,14 +249,21 @@ public class ShopGUI {
             reward = new ItemStack(Material.CHORUS_FRUIT,2);
             rewardName = "紫菘果 x2";
         }
-        else if (roll<42){
+        else if (roll<40){
+            reward = new ItemStack(Material.BRICK, 1);
+            ItemMeta meta = reward.getItemMeta();
+            meta.displayName(Component.text("§6盾墙"));
+            reward.setItemMeta(meta);
+            rewardName = "盾墙 x1";
+        }
+        else if (roll<48){
             reward = new ItemStack(Material.GUNPOWDER, 1);
             ItemMeta meta = reward.getItemMeta();
             meta.displayName(Component.text("§6回城卷轴"));
             reward.setItemMeta(meta);
             rewardName = "回城卷轴x1";
         }
-        else if (roll<54){
+        else if (roll<56){
             reward = new ItemStack(Material.EGG, 1);
             ItemMeta meta = reward.getItemMeta();
             meta.displayName(Component.text("§6搭桥蛋"));
@@ -289,7 +296,7 @@ public class ShopGUI {
         } else if (roll < 97) {
             reward = new ItemStack(Material.BLAZE_ROD, 1);
             ItemMeta meta = reward.getItemMeta();
-            meta.displayName(Component.text("§6自救平台"));
+            meta.displayName(Component.text("§e" + "自救平台", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
             reward.setItemMeta(meta);
             rewardName = "自救平台";
         } else {
@@ -306,15 +313,14 @@ public class ShopGUI {
         player.sendMessage("§6[神秘抽奖] §a恭喜你抽中了: §f" + rewardName);
     }
     private void executeBookLottery(Player player) {
-        // 1. 定义奖池与权重 (权重越高，抽中的概率越大)
         Map<Enchantment, Integer> weights = new HashMap<>();
-        weights.put(Enchantment.SHARPNESS, 30);             // 提高锋利概率 (高)
-        weights.put(Enchantment.PROTECTION, 30);            // 提高保护概率 (高)
+        weights.put(Enchantment.SHARPNESS, 30);             // 锋利概率 (高)
+        weights.put(Enchantment.PROTECTION, 30);            // 保护概率 (高)
         weights.put(Enchantment.EFFICIENCY, 15);            // 效率中等概率 (中)
         weights.put(Enchantment.FIRE_ASPECT, 15);           // 火焰附加中等概率 (中)
         weights.put(Enchantment.FLAME, 10);                 // 火矢 (普通)
         weights.put(Enchantment.PROJECTILE_PROTECTION, 10); // 弹射物保护 (普通)
-        weights.put(Enchantment.POWER, 5);                  // 大幅降低力量获取概率 (极低)
+        weights.put(Enchantment.POWER, 5);                  // 力量获取概率 (极低)
         int totalWeight = weights.values().stream().mapToInt(Integer::intValue).sum();
         Random random = new Random();
         int randomWeight = random.nextInt(totalWeight);
@@ -403,12 +409,14 @@ public class ShopGUI {
         return sponge;
     }
     private void renderMisc(Inventory inv, Player player) {
+        inv.setItem(getSlot(4, 5), createCustomPotion("漂浮药水 (漂浮 II 7s)", org.bukkit.potion.PotionEffectType.LEVITATION, 140, 1, 2, Material.GOLD_INGOT));
+        inv.setItem(getSlot(4, 6), createCustomPotion("隐身药水(30s)", org.bukkit.potion.PotionEffectType.INVISIBILITY, 600, 0, 4, Material.GOLD_INGOT));
         inv.setItem(getSlot(3, 2), createShopItem(Material.COMPASS, "指南针", 1, 1, Material.GOLD_INGOT));
         inv.setItem(getSlot(3, 5), createLotteryIcon());
         inv.setItem(getSlot(3, 3), createShopItem(Material.BLAZE_ROD, "自救平台", 1, 1, Material.GOLD_INGOT));
         inv.setItem(getSlot(4, 2), createPotionItem("瞬间治疗药水", PotionType.HEALING, 2, 12, Material.IRON_INGOT, false));
-        inv.setItem(getSlot(4, 3), createCustomPotion("速度药水 (速度 Ⅴ)", org.bukkit.potion.PotionEffectType.SPEED, 600, 4, 1, Material.GOLD_INGOT));
-        inv.setItem(getSlot(4, 4), createCustomPotion("跳跃药水 (跳跃 V)", org.bukkit.potion.PotionEffectType.JUMP_BOOST, 600, 4, 1, Material.GOLD_INGOT));
+        inv.setItem(getSlot(4, 3), createCustomPotion("速度药水 (速度 V 30s)", org.bukkit.potion.PotionEffectType.SPEED, 600, 4, 1, Material.GOLD_INGOT));
+        inv.setItem(getSlot(4, 4), createCustomPotion("跳跃药水 (跳跃 V 30s)", org.bukkit.potion.PotionEffectType.JUMP_BOOST, 600, 4, 1, Material.GOLD_INGOT));
         inv.setItem(getSlot(5, 2), createShopItem(Material.ENCHANTED_BOOK, "随机附魔书", 1, 200, Material.IRON_INGOT));
     }
     // 3. 辅助方法：创建真正有效果的药水
@@ -439,7 +447,6 @@ public class ShopGUI {
         ItemStack item = new ItemStack(type, amount);
         ItemMeta meta = item.getItemMeta();
         meta.displayName(Component.text("§e" + name, NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
-
         List<Component> lore = new ArrayList<>();
         String currencyName = (currency == Material.IRON_INGOT) ? "§f铁锭" : "§6金锭";
         lore.add(Component.text("§7价格: " + (currency == Material.IRON_INGOT ? "§f" : "§6") + price + " " + currencyName).decoration(TextDecoration.ITALIC, false));
@@ -448,7 +455,6 @@ public class ShopGUI {
         meta.getPersistentDataContainer().set(PRICE_KEY, PersistentDataType.INTEGER, price);
         meta.getPersistentDataContainer().set(CURRENCY_KEY, PersistentDataType.STRING, currency.name());
         meta.lore(lore);
-        // 【新增逻辑】只要是有耐久度的物品（排除鞘翅），全部设置为无法破坏
         if (type.getMaxDurability() > 0 && type != Material.ELYTRA) {
             meta.setUnbreakable(true);
         }

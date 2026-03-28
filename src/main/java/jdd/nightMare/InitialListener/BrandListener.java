@@ -37,15 +37,11 @@ public class BrandListener implements Listener {
     private boolean isTeammate(Player p1, Player p2) {
         PlayerSession s1 = gameManager.getPlayerSession(p1);
         PlayerSession s2 = gameManager.getPlayerSession(p2);
-        // 如果任何一方不在游戏会话中，视为非队友（或者为了安全视为队友，取决于你的逻辑）
         if (s1 == null || s2 == null || s1.getGame() == null || s2.getGame() == null) return false;
-        // 获取各自的队伍
         var team1 = s1.getGame().getTeam(p1);
         var team2 = s2.getGame().getTeam(p2);
-        // 判定队伍是否相同
         return team1 != null && team1.equals(team2);
     }
-    // 监听攻击事件 (自适应、腐败、枷锁、钢铁之心)
     @EventHandler
     public void onCombat(EntityDamageByEntityEvent event) {
         // --- 处理攻击方烙印 ---
@@ -62,7 +58,7 @@ public class BrandListener implements Listener {
                     double maxHp = attacker.getAttribute(Attribute.MAX_HEALTH).getValue();
                     if (attacker.getHealth() / maxHp >= 0.8) {
                         if (random.nextDouble() <= 0.1) {
-                            event.setDamage(event.getDamage() * 1.2);
+                            event.setDamage(event.getDamage() * 1.5);
                             session.setBrandCooldown(BrandType.ADAPTIVE_5.id, BrandType.ADAPTIVE_5.maxCooldown);
                             attacker.sendMessage("§c[NightMare] 触发了 自适应五级！伤害提升！");
                         }
@@ -71,7 +67,7 @@ public class BrandListener implements Listener {
                 // 2. 致盲术 (BLIND_STRIKE)
                 if (session.hasBrand(BrandType.BLIND_STRIKE.id) && session.isBrandReady(BrandType.BLIND_STRIKE.id)) {
                     if (random.nextDouble() <= 0.15) { // 15% 概率
-                        victim.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 100, 0)); // 5秒
+                        victim.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 40, 0));
                         session.setBrandCooldown(BrandType.BLIND_STRIKE.id, BrandType.BLIND_STRIKE.maxCooldown);
                         attacker.sendMessage("§8[NightMare] 致盲术生效！敌人已陷入黑暗。");
                         attacker.playSound(attacker.getLocation(), org.bukkit.Sound.ENTITY_ILLUSIONER_MIRROR_MOVE, 1f, 1f);
@@ -97,16 +93,14 @@ public class BrandListener implements Listener {
                 }
                 // 6. 震击
                 if (session.hasBrand(BrandType.SHOCKWAVE.id) && session.isBrandReady(BrandType.SHOCKWAVE.id)) {
-                    if (random.nextDouble() <= 0.2) { // 15% 概率
-                        // 计算击退向量：从攻击者指向受害者的水平向量
+                    if (random.nextDouble() <= 0.2) {
                         org.bukkit.util.Vector direction = victim.getLocation().toVector()
                                 .subtract(attacker.getLocation().toVector())
-                                .setY(0) // 先清空Y轴，保证水平推力方向纯正
+                                .setY(0)
                                 .normalize();
                         org.bukkit.util.Vector velocity = direction.multiply(1.2).setY(0.2);
 
                         victim.setVelocity(velocity);
-                        // 视觉与音效反馈
                         victim.getWorld().spawnParticle(org.bukkit.Particle.EXPLOSION, victim.getLocation().add(0, 1, 0), 1);
                         attacker.playSound(attacker.getLocation(), org.bukkit.Sound.ENTITY_ZOMBIE_ATTACK_IRON_DOOR, 1f, 0.5f);
                         attacker.sendMessage("§6[NightMare] 触发了 震撼！敌人被扇飞了！");
@@ -138,16 +132,17 @@ public class BrandListener implements Listener {
                 double maxHp = victim.getAttribute(Attribute.MAX_HEALTH).getValue();
                 // 受击后血量低于 50% 触发
                 if (victim.getHealth() / maxHp <= 0.5) {
-                    victim.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION, 200, 2));
-                    session.setBrandCooldown(BrandType.BARRIER.id, BrandType.BARRIER.maxCooldown);
-                    victim.sendMessage("§6[NightMare] 屏障激活！获得大量额外护盾。");
-                    victim.playSound(victim.getLocation(), org.bukkit.Sound.ITEM_ARMOR_EQUIP_DIAMOND, 1f, 1f);
+                    if (random.nextDouble()<=0.3){
+                        victim.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION, 200, 1));
+                        session.setBrandCooldown(BrandType.BARRIER.id, BrandType.BARRIER.maxCooldown);
+                        victim.sendMessage("§6[NightMare] 屏障激活！获得大量额外护盾。");
+                        victim.playSound(victim.getLocation(), org.bukkit.Sound.ITEM_ARMOR_EQUIP_DIAMOND, 1f, 1f);
+                    }
                 }
             }
 
             // 8. 第二回合 (SECOND_ROUND)
             if (session.hasBrand(BrandType.SECOND_ROUND.id) && session.isBrandReady(BrandType.SECOND_ROUND.id)) {
-                // 濒死状态 (血量低于 4点 / 2颗心)
                 if (victim.getHealth() <= 4.0 && random.nextDouble() <= 0.05) { // 5% 概率
                     if (victim.getInventory().getItemInOffHand().getType() == Material.AIR) {
                         victim.getInventory().setItemInOffHand(new ItemStack(Material.TOTEM_OF_UNDYING));
@@ -177,9 +172,6 @@ public class BrandListener implements Listener {
                 victim.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 60, 1)); // 3秒 速度 II
                 victim.sendMessage("§b[烙印] 触发神行，获得速度！");
             }
-        // ==========================================
-        // 攻击触发类 (引力崩坏、刺杀)
-        // ==========================================
         // 1. 引力崩坏 (弓箭命中)
         if (event.getDamager() instanceof org.bukkit.entity.Arrow arrow && arrow.getShooter() instanceof Player shooter) {
             PlayerSession shooterSession = gameManager.getPlayerSession(shooter);
@@ -197,11 +189,10 @@ public class BrandListener implements Listener {
                 // 判定是否为“跳劈”(暴击)：玩家不在地面，且正在下落 (FallDistance > 0)，且没在水里
                 boolean isCrit = !attacker.isOnGround() && attacker.getFallDistance() > 0.0f
                         && !attacker.isInWater() && !attacker.hasPotionEffect(PotionEffectType.BLINDNESS);
-                if (isCrit && Math.random() <= 0.05) { // 5% 的极小概率
+                if (isCrit && Math.random() <= 0.08) { // 5% 的极小概率
                     // 设置双倍伤害
                     event.setDamage(event.getDamage() * 2);
                     attackerSession.setBrandCooldown(BrandType.ASSASSINATION.id, BrandType.ASSASSINATION.maxCooldown);
-                    // 炫酷的反馈特效
                     attacker.sendMessage("§4[烙印] 致命刺杀！造成双倍暴击伤害！");
                     attacker.getWorld().playSound(attacker.getLocation(), Sound.ENTITY_PLAYER_ATTACK_CRIT, 1.0f, 0.5f);
                     attacker.getWorld().spawnParticle(Particle.CRIT, victim.getLocation().add(0, 1, 0), 20, 0.5, 0.5, 0.5, 0.1);
@@ -266,7 +257,7 @@ public class BrandListener implements Listener {
                 for (Entity entity : victim.getNearbyEntities(radius, radius, radius)) {
                     if (entity instanceof Player nearbyPlayer) {
                         if (!isTeammate(victim, nearbyPlayer)) {
-                            nearbyPlayer.addPotionEffect(new PotionEffect(PotionEffectType.WITHER, 60, 1));
+                            nearbyPlayer.addPotionEffect(new PotionEffect(PotionEffectType.WITHER, 100, 1));
                             nearbyPlayer.sendMessage("§5[NightMare] 你受到了 " + victim.getName() + " 临死前的腐败诅咒！");
                         }
                     }
@@ -276,28 +267,22 @@ public class BrandListener implements Listener {
                 victim.sendMessage("§5[NightMare] 腐败已触发！");
             }
         }
-        // ==========================================
-        // 烙印：同归于尽 (死亡后生成高伤害 TNT)
-        // ==========================================
         if (session != null && session.hasBrand(BrandType.MARTYR.id) && session.isBrandReady(BrandType.MARTYR.id)) {
             session.setBrandCooldown(BrandType.MARTYR.id, BrandType.MARTYR.maxCooldown); // 触发 60 秒冷却
             Location loc = victim.getLocation();
             TNTPrimed tnt = loc.getWorld().spawn(loc, TNTPrimed.class);
-            tnt.setYield(5.0F);
+            tnt.setYield(3.0F);
             tnt.setFuseTicks(40);
 
             victim.sendMessage("§c[烙印] 你触发了同归于尽！");
             loc.getWorld().playSound(loc, Sound.ENTITY_WITHER_SPAWN, 0.5f, 1.5f);
         }
-        // ==========================================
-        // 烙印：战争践踏 (杀死敌人获得力量)
-        // ==========================================
+
         Player killer = victim.getKiller();
         if (killer != null) {
             PlayerSession killerSession = gameManager.getPlayerSession(killer);
             if (killerSession != null && killerSession.hasBrand(BrandType.WAR_STOMP.id) && killerSession.isBrandReady(BrandType.WAR_STOMP.id)) {
                 killerSession.setBrandCooldown(BrandType.WAR_STOMP.id, BrandType.WAR_STOMP.maxCooldown);
-                // 给予 5 秒的力量 I
                 killer.addPotionEffect(new PotionEffect(PotionEffectType.STRENGTH, 100, 0));
                 killer.sendMessage("§4[烙印] 触发战争践踏，获得力量增益！");
                 killer.playSound(killer.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 0.5f, 2.0f);
