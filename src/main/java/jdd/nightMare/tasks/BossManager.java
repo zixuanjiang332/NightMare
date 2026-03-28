@@ -1,5 +1,6 @@
 package jdd.nightMare.tasks;
 import jdd.nightMare.Game.Game;
+import jdd.nightMare.GameConfig.MapConfig;
 import jdd.nightMare.NightMare;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Location;
@@ -7,6 +8,7 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.*;
+import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -37,7 +39,6 @@ public class BossManager {
     private final Game game;
     private final List<LivingEntity> activeBosses = new ArrayList<>();
     private BukkitRunnable particleTask;
-
     public static final NamespacedKey BOSS_TYPE_KEY = new NamespacedKey(NightMare.getInstance(), "boss_type");
     public static final NamespacedKey BOSS_LEVEL_KEY = new NamespacedKey(NightMare.getInstance(), "boss_level");
 
@@ -48,23 +49,17 @@ public class BossManager {
     }
 
     public void spawnNightBosses(int level) {
-        // 获取地图配置的副岛坐标（应有4个）
         List<Location> spawnerLocations = game.getMap().getSideLocations();
         if (spawnerLocations.isEmpty()) return;
 
         String[] types = {"WIND", "FIRE", "WOOD", "WATER"};
 
-        cleanup(); // 清理旧Boss
-
-        // 循环生成，确保每个坐标生成一个不同类型的 Boss
+        cleanup();
         for (int i = 0; i < Math.min(types.length, spawnerLocations.size()); i++) {
             Location loc = spawnerLocations.get(i).clone().add(0, 0, 0);
             loc.getChunk().load();
-
-            // 【修复 1】统一使用 Zombie 确保 setupBossAppearance 能正确处理
             Zombie boss = (Zombie) loc.getWorld().spawnEntity(loc, EntityType.ZOMBIE);
             boss.setBaby(false);
-            // 【修复 2】防止僵尸变异成溺尸或在阳光下自燃
             boss.setConversionTime(-1);
             double hp = (level == 1) ? 100.0 : 200.0;
             if (boss.getAttribute(Attribute.MAX_HEALTH) != null) {
@@ -74,28 +69,19 @@ public class BossManager {
 
             boss.setCustomNameVisible(true);
             boss.setRemoveWhenFarAway(false);
-            boss.setCanPickupItems(false); // 防止捡起玩家掉落物
+            boss.setCanPickupItems(false);
 
-            // 写入 PDC 数据
             boss.getPersistentDataContainer().set(BOSS_TYPE_KEY, PersistentDataType.STRING, types[i]);
             boss.getPersistentDataContainer().set(BOSS_LEVEL_KEY, PersistentDataType.INTEGER, level);
-
-            // 【修复 3】必须调用外观设置方法！
             setupBossAppearance(boss, types[i], level);
 
             synchronized (activeBosses) {
                 activeBosses.add(boss);
             }
-
-            // 炫酷降临特效：闪电（无伤害）
             loc.getWorld().strikeLightningEffect(loc);
         }
         Bukkit.broadcast(Component.text("§e§l[噩梦守卫] §f四大元素守卫已在副岛降临！"));
     }
-
-    /**
-     * 【修复 4】完善外观设置逻辑
-     */
     private void setupBossAppearance(Zombie boss, String type, int level) {
         boss.getEquipment().clear();
         String displayName;
@@ -140,12 +126,10 @@ public class BossManager {
             boss.getEquipment().setItemInMainHand(new ItemStack(tool));
         }
 
-        // 加上掉落率锁定（0%），防止玩家刷装备
         boss.getEquipment().setHelmetDropChance(0.0f);
         boss.getEquipment().setChestplateDropChance(0.0f);
         boss.getEquipment().setLeggingsDropChance(0.0f);
         boss.getEquipment().setBootsDropChance(0.0f);
-        // 设置主手物品掉落率 (1.21.x 正确方法名)
         boss.getEquipment().setItemInMainHandDropChance(0.0f);
         boss.setAI(false);
         if (boss.getAttribute(Attribute.KNOCKBACK_RESISTANCE) != null) {
@@ -159,7 +143,6 @@ public class BossManager {
         Location midLoc = game.getMap().getSpectatorLocation().clone().add(0, 0, 0);
         midLoc.getChunk().load();
         Wither wither = (Wither) midLoc.getWorld().spawnEntity(midLoc, EntityType.WITHER);
-
         wither.setCustomName("§d§l噩梦主宰");
         wither.setCustomNameVisible(true);
         wither.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH).setBaseValue(200.0);
@@ -167,12 +150,12 @@ public class BossManager {
         wither.setAI(false);
         wither.setGravity(false);
         wither.getPersistentDataContainer().set(BOSS_ROLE_KEY, PersistentDataType.STRING, "MID_BOSS");
-        wither.setMetadata("NightMareBoss", new org.bukkit.metadata.FixedMetadataValue(NightMare.getInstance(), "boss"));
+        wither.setMetadata("NightMareBoss", new FixedMetadataValue(NightMare.getInstance(), "boss"));
         synchronized (activeBosses) {
             activeBosses.add(wither);
         }
 
-        Bukkit.broadcast(net.kyori.adventure.text.Component.text("§5§l[NightMare] §f床已自毁，中岛 Boss §d§l凋零 §f已降临！击败它获得全队增益！"));
+        Bukkit.broadcast(Component.text("§5§l[NightMare] §f床已自毁，中岛 Boss §d§l凋零 §f已降临！击败它获得全队增益！"));
         midLoc.getWorld().strikeLightningEffect(midLoc);
         new BukkitRunnable() {
             int attackCooldown = 0;
@@ -203,7 +186,7 @@ public class BossManager {
                 .subtract(source.getEyeLocation().toVector())
                 .normalize();
         WitherSkull skull = source.launchProjectile(WitherSkull.class, direction.multiply(1.2));
-        skull.setMetadata("NightMareBoss", new org.bukkit.metadata.FixedMetadataValue(NightMare.getInstance(), "boss"));
+        skull.setMetadata("NightMareBoss", new FixedMetadataValue(NightMare.getInstance(), "boss"));
         source.getWorld().playSound(source.getLocation(), Sound.ENTITY_WITHER_SHOOT, 1f, 1f);
     }
     private ItemStack getColoredArmor(Material material, Color color) {
@@ -217,18 +200,10 @@ public class BossManager {
     private Player getNearestEnemyPlayer(Entity origin, double radius) {
         Player nearest = null;
         double minDistanceSquared = radius * radius; // 使用平方比较，避免开方运算(Math.sqrt)，极大提升性能
-
-        // 只获取半径范围内的实体，比遍历全服玩家快 100 倍
         for (Entity entity : origin.getNearbyEntities(radius, radius, radius)) {
             if (entity instanceof Player player) {
-                // 1. 基础状态过滤：排除死人、创造模式、观察者
                 if (player.isDead() || !player.isValid()) continue;
                 if (player.getGameMode() == GameMode.CREATIVE || player.getGameMode() == GameMode.SPECTATOR) continue;
-
-                // 2. 团队过滤：如果你有队友系统，可以在这里排除“守护者”NPC或同队玩家
-                // if (isTeammate(origin, player)) continue;
-
-                // 3. 距离计算
                 double distSq = player.getLocation().distanceSquared(origin.getLocation());
                 if (distSq < minDistanceSquared) {
                     minDistanceSquared = distSq;

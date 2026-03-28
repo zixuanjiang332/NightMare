@@ -74,3 +74,75 @@ Luori:
     yellow: [ -102, 73, -1 ]
     blue: [ 1, 73, -102 ]
     green: [ 102 , 73, 1 ]
+Mogu:
+  id: mogu
+  spectator-teleport-location: [0.50,40.10,0.50]
+  spawners:
+      - { type: "IRON", location: "world,-79,38,8" }
+      - { type: "IRON", location: "world,8,38,79" }
+      - { type: "IRON", location: "world,79,38,-8" }
+      - { type: "IRON", location: "world,-8,38,-79" }
+      - { type: "IRON", location: "world,-42,40,2" }
+      - { type: "IRON", location: "world,2,40,42" }
+      - { type: "IRON", location: "world,42,40,-2" }
+      - { type: "IRON", location: "world,-2,40,-42" }
+      # 4个副岛刷新点
+      - { type: "SIDE_IRON", location: "world,41,40,41" }
+      - { type: "SIDE_IRON", location: "world,-41,40,41" }
+      - { type: "SIDE_IRON", location: "world,41,40,-41" }
+      - { type: "SIDE_IRON", location: "world,-41,40,-41" }
+      # 金锭刷新点
+      - { type: "GOLD", location: "world,2,40,-2" }
+      - { type: "GOLD", location: "world,-2,40,2" }
+      - { type: "GOLD", location: "world,-2,40,-2" }
+      - { type: "GOLD", location: "world,2,40,2" }
+  team-spawn-locations:
+        red: [ 3.5 , 38.10, 77.5 ]
+        blue: [ 77.5, 38.10, -2.5 ]
+        yellow: [ -76.5, 38.10, 2.5 ]
+        green: [ -2.5, 38.10, -76.5 ]
+  team-shop-locations:
+        red: [ -2.5, 38, 75.5 ]
+        yellow: [ -74.5, 38, -2.5 ]
+        blue: [ 75.5, 38, 3.5 ]
+        green: [ 3.5 , 38, -74.5 ]
+  team-bed-locations:
+        red: [ 6, 39, 87 ]
+        yellow: [ -87, 39, 6 ]
+        blue: [ 87, 39, -6 ]
+        green: [ -6 , 39, -87 ]
+Mojang:
+  id: mojang
+  spectator-teleport-location: [0.50,62.10,0.50]
+  spawners:
+      - { type: "IRON", location: "world,72,62,71" }
+      - { type: "IRON", location: "world,-71,62,72" }
+      - { type: "IRON", location: "world,-72,62,-71" }
+      - { type: "IRON", location: "world,71,62,-72" }
+      # 4个副岛刷新点
+      - { type: "SIDE_IRON", location: "world,55,61,-49" }
+      - { type: "SIDE_IRON", location: "world,-49,61,-55" }
+      - { type: "SIDE_IRON", location: "world,-55,61,49" }
+      - { type: "SIDE_IRON", location: "world,49,61,55" }
+      # 金锭刷新点
+      - { type: "GOLD", location: "world,-36,62,0" }
+      - { type: "GOLD", location: "world,0,62,-36" }
+      - { type: "GOLD", location: "world,0,62,36" }
+      - { type: "GOLD", location: "world,36,62,0" }
+      - { type: "GOLD", location: "world,0,62,0" }
+
+  team-spawn-locations:
+        red: [ 75.5 , 62.10, 81.5 ]
+        blue: [ -74.5, 62.10, -80.5 ]
+        yellow: [ -80.5, 62.10, 75.5 ]
+        green: [ 81.5, 62.10, -74.5 ]
+  team-shop-locations:
+        red: [ 81.5, 63, 82.5 ]
+        yellow: [ -81.5, 63, 82.5 ]
+        blue: [ -81.5, 63, -81.5 ]
+        green: [ 82.5 , 63, -81.5 ]
+  team-bed-locations:
+        red: [ 76, 63, 92 ]
+        yellow: [ -92, 63, 76 ]
+        blue: [ -76, 63, -92 ]
+        green: [ 92 , 63, -76 ]

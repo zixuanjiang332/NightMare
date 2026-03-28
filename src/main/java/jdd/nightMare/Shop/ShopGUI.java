@@ -419,7 +419,6 @@ public class ShopGUI {
         inv.setItem(getSlot(4, 4), createCustomPotion("跳跃药水 (跳跃 V 30s)", org.bukkit.potion.PotionEffectType.JUMP_BOOST, 600, 4, 1, Material.GOLD_INGOT));
         inv.setItem(getSlot(5, 2), createShopItem(Material.ENCHANTED_BOOK, "随机附魔书", 1, 200, Material.IRON_INGOT));
     }
-    // 3. 辅助方法：创建真正有效果的药水
     private ItemStack createCustomPotion(String name, org.bukkit.potion.PotionEffectType type, int durationTicks, int amplifier, int price, Material currency) {
         ItemStack potion = createShopItem(Material.POTION, name, 1, price, currency);
         org.bukkit.inventory.meta.PotionMeta meta = (org.bukkit.inventory.meta.PotionMeta) potion.getItemMeta();
@@ -518,7 +517,6 @@ public class ShopGUI {
             // 基础默认套装
             inv.setItem(25, createShopItem(Material.CHAINMAIL_LEGGINGS, "锁链下装", 1, 30, Material.IRON_INGOT));
         }
-        // 鞘翅保持原样
         inv.setItem(26, createShopItem(Material.FISHING_ROD, "噩梦空间冠军钓竿", 1, 40, Material.IRON_INGOT));
         inv.setItem(32, createShopItem(Material.BOW, "噩梦长弓", 1, 7, Material.GOLD_INGOT));
         inv.setItem(33, createShopItem(Material.ARROW, "箭矢", 8, 16, Material.IRON_INGOT));

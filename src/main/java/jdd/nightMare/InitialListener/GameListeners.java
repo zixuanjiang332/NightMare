@@ -481,9 +481,9 @@ public class GameListeners implements Listener {
     @EventHandler
     public void onBlockPlace(BlockPlaceEvent event){
         Player player = event.getPlayer();
-        if (event.getBlockPlaced().getLocation().getBlockY()>=200){
+        if (event.getBlockPlaced().getLocation().getBlockY()>=150){
             event.setCancelled(true);
-            player.sendMessage("§c高度过高(200格)无法放置方块！");
+            player.sendMessage("§c高度过高(150格)无法放置方块！");
         }
         if (gameManager.hasActiveSession(player)){
             if (!gameManager.getPlayerSession(player).getGame().isActive())
@@ -562,7 +562,7 @@ public class GameListeners implements Listener {
         Player player = event.getPlayer();
         item.setAmount(item.getAmount() - 1);
         TNTPrimed tnt = player.getWorld().spawn(player.getEyeLocation(), TNTPrimed.class);
-        tnt.setYield(3.0F);
+        tnt.setYield(2.0F);
         Vector throwVelocity = player.getLocation().getDirection().multiply(2.8);
         tnt.setVelocity(throwVelocity);
         tnt.setFuseTicks(15);

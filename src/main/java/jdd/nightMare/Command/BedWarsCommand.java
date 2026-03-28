@@ -65,7 +65,14 @@ public class BedWarsCommand implements CommandExecutor {
                 startCountdown.setTime(999);
             }
         }
-
+        if (command.getName().equalsIgnoreCase("shuaxing")) {
+            for(Player onlinePlayer : Bukkit.getOnlinePlayers()){
+                if (gameManager.hasActiveSession(onlinePlayer)){
+                    gameManager.getPlayerSession(onlinePlayer).getGame().playerLeave(onlinePlayer);
+                    onlinePlayer.sendMessage("§a已退出当前对局，正在返回大厅...");
+                }
+            }
+        }
         return false;
     }
 }

@@ -40,7 +40,6 @@ public final class NightMare extends JavaPlugin {
         GameManager gameManager = new GameManager();
         this.lobbyBoardManager = new LobbyBoardManager(gameManager);
         this.lobbyBoardManager.startUpdateTask();
-
         // 热重载保护：给当前所有在线的非游戏玩家发计分板
         for (Player p : Bukkit.getOnlinePlayers()) {
             if (!gameManager.hasActiveSession(p)) {
@@ -63,6 +62,7 @@ public final class NightMare extends JavaPlugin {
         getCommand("start").setExecutor(bedWarsCommand);
         getCommand("end").setExecutor(bedWarsCommand);
         getCommand("wait").setExecutor(bedWarsCommand);
+        getCommand("shuaxing").setExecutor(bedWarsCommand);
     }
 
     public static NightMare getInstance() {

@@ -48,7 +48,7 @@ public class BossDeathListener implements Listener {
         Player killer = boss.getKiller();
         // 2. 清除僵尸原本的掉落物（如腐肉）
         event.getDrops().clear();
-        // 3. 【完善】 生成符合要求的随机附魔书
+        // 3.  生成符合要求的随机附魔书
         for (int i=0;i<random.nextInt(1)+2;i++){
             event.getDrops().add(generateSpecificRandomBook(level));
         }
@@ -100,18 +100,13 @@ public class BossDeathListener implements Listener {
     public void applyBossBuff(Player player, PotionEffectType type, int amplifier, int durationTicks) {
         PlayerSession session = gameManager.getPlayerSession(player);
         if (session != null) {
-            // 1. 正常给予原版药水效果
             player.addPotionEffect(new PotionEffect(type, durationTicks, amplifier));
-            // 2. 在 Session 中记录过期时间戳，用于死亡重生后的比对
             session.trackBossBuff(type, amplifier, durationTicks);
         }
     }
     @EventHandler
     public void onMidBossDeath(EntityDeathEvent event) {
-        // 检查是否是凋零
         if (!(event.getEntity() instanceof Wither wither)) return;
-
-        // 检查 PDC 标记
         if (!wither.getPersistentDataContainer().has(BossManager.BOSS_ROLE_KEY, PersistentDataType.STRING)) return;
         String role = wither.getPersistentDataContainer().get(BossManager.BOSS_ROLE_KEY, PersistentDataType.STRING);
         if ("MID_BOSS".equals(role)) {
@@ -126,7 +121,6 @@ public class BossDeathListener implements Listener {
                 event.getDrops().clear();
                 return;
             }
-            // 1. 发放全队 Buff (力量 I, 4分钟 = 4800 Ticks)
             GameTeam team = gameManager.getPlayerSession(killer).getGame().getTeam(killer);
             if (team != null) {
                 for (Player member : team.getTeamPlayers()) {
@@ -135,13 +129,11 @@ public class BossDeathListener implements Listener {
                 }
             }
 
-            // 2. 生成掉落物 (2-3 本强力附魔书)
             int bookCount = random.nextInt(2) + 2; // 2 或 3
             for (int i = 0; i < bookCount; i++) {
                 ItemStack book = createRandomEnchantedBook();
                 wither.getLocation().getWorld().dropItemNaturally(wither.getLocation(), book);
             }
-            // 清除原版掉落（下界之星）
             event.getDrops().clear();
         }
     }
@@ -194,18 +186,13 @@ public class BossDeathListener implements Listener {
                 Enchantment.FLAME           //火矢
         ));
 
-        // 2. 随机选择一个附魔
         Enchantment selected = pool.get(random.nextInt(pool.size()));
-        // 3. 【完善】 设定附魔等级：
-        // 1级Boss掉落 I-II 级书； 2级Boss掉落 III-IV 级书。 (5级太强，平衡一下)
         int minLvl = (bossLevel == 1) ? 1 : 3;
         int maxLvl = (bossLevel == 1) ? 2 : 4;
-        // 针对最高只有2级的附魔(如火焰附加)做特殊处理
         int enchantLevel;
         if (selected.getMaxLevel() < maxLvl) {
             enchantLevel = selected.getMaxLevel();
         } else {
-            // 生成 minLvl 到 maxLvl 之间的随机整数
             enchantLevel = random.nextInt((maxLvl - minLvl) + 1) + minLvl;
         }
         if(selected == Enchantment.POWER){
@@ -220,9 +207,6 @@ public class BossDeathListener implements Listener {
         book.setItemMeta(meta);
         return book;
     }
-    /**
-     * 【完善】 给队伍所有成员施加祝福
-     */
     private void applyTeamBuffsToAllMembers(Game game, GameTeam team, String bossType, int bossLevel) {
         PotionEffectType effectType = switch (bossType) {
             case "WIND" -> PotionEffectType.SPEED;           // 速度
@@ -232,8 +216,8 @@ public class BossDeathListener implements Listener {
             default -> PotionEffectType.GLOWING;
         };
 
-        int amplifier = bossLevel - 1; // 1级Boss给I级果(0)，2级Boss给II级效果(1)
-        int durationTicks = 20 * 180; // 持续3分钟 (180秒)
+        int amplifier = bossLevel - 1;
+        int durationTicks = 20 * 180;
 
         String typeDesc = switch (bossType) {
             case "WIND" -> "苍穹(速度)";
@@ -243,13 +227,9 @@ public class BossDeathListener implements Listener {
             default -> "未知";
         };
 
-        // 遍历该队伍在游戏中的所有成员
         for (Player member : team.getTeamPlayers()) {
-            // 确保玩家在线且存活 (没有被清理出 game.getGamePlayers())
             if (member.isOnline() && game.getGamePlayers().containsKey(member)) {
-                // 强制应用 Buff
                 applyBossBuff(member, effectType,amplifier , durationTicks);
-                // 视觉和声音反馈
                 member.sendMessage("§a[守卫祝福] §f由于击杀了 §e" + typeDesc + " §fBoss，全队获得了 Blessing " + (bossLevel == 1 ? "I" : "II") + "！");
                 member.playSound(member.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.7f, 1.2f);
             }

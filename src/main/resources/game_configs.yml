@@ -9,4 +9,6 @@ game-config:
     map-ids:
       - testmap
       - luori
+      - mogu
+      - mojang
     name: MODEL1

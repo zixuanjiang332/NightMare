@@ -98,14 +98,10 @@ public class BrandGUI implements Listener {
         ItemStack item = new ItemStack(Material.FIREWORK_STAR);
         ItemMeta meta = item.getItemMeta();
         boolean isSelected = session.hasBrand(type.id);
-
-        // 设置显示名
         meta.displayName(Component.text(type.displayName).decoration(TextDecoration.ITALIC, false));
-        // 设置 Lore
         List<Component> lore = new ArrayList<>();
         lore.add(Component.text("§8类型: " + (type.maxCooldown > 0 ? "主动触发/冷却" : "被动/周期")).decoration(TextDecoration.ITALIC, false));
         lore.add(Component.empty());
-        // 自动换行处理描述 (简单处理)
         lore.add(Component.text(type.description).color(NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
 
         if (type.maxCooldown > 0) {
@@ -115,41 +111,30 @@ public class BrandGUI implements Listener {
         lore.add(Component.empty());
         if (isSelected) {
             lore.add(Component.text("§a● 已选择 (点击取消)").decoration(TextDecoration.ITALIC, false));
-            // 增加附魔光效
             meta.addEnchant(Enchantment.UNBREAKING, 1, true);
             meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         } else {
             lore.add(Component.text("§7○ 未选择 (点击勾选)").decoration(TextDecoration.ITALIC, false));
         }
 
-        // 写入 PDC 数据
         meta.getPersistentDataContainer().set(BRAND_ID_KEY, PersistentDataType.STRING, type.id);
-
         meta.lore(lore);
         item.setItemMeta(meta);
         return item;
     }
 
-    /**
-     * 监听点击逻辑
-     */
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
         if (!event.getView().title().equals(Component.text(GUI_TITLE))) return;
-        event.setCancelled(true); // 禁止取走物品
-
+        event.setCancelled(true);
         if (!(event.getWhoClicked() instanceof Player player)) return;
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType() != Material.FIREWORK_STAR) return;
-
         ItemMeta meta = clicked.getItemMeta();
         if (!meta.getPersistentDataContainer().has(BRAND_ID_KEY, PersistentDataType.STRING)) return;
-
         String brandId = meta.getPersistentDataContainer().get(BRAND_ID_KEY, PersistentDataType.STRING);
         PlayerSession session = gameManager.getPlayerSession(player);
         if (session == null) return;
-
-        // 执行切换逻辑
         boolean currentlySelected = session.hasBrand(brandId);
 
         if (!currentlySelected && session.getActiveBrands().size() >= 6) {
@@ -158,15 +143,13 @@ public class BrandGUI implements Listener {
             return;
         }
 
-        session.toggleBrand(brandId); // 这个方法在上一轮建议中已经写在 PlayerSession 里了
+        session.toggleBrand(brandId);
 
-        // 播放反馈音效
         if (currentlySelected) {
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 0.5f);
         } else {
             player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.2f);
         }
-        // 刷新 GUI (通过重新打开)
         open(player);
     }
 }

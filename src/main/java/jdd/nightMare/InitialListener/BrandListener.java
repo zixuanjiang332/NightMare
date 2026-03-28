@@ -1,5 +1,6 @@
 package jdd.nightMare.InitialListener;
 import jdd.nightMare.Game.BrandType;
+import jdd.nightMare.Game.Game;
 import jdd.nightMare.Game.GameManager;
 import jdd.nightMare.Game.PlayerSession;
 import jdd.nightMare.Shop.BrandGUI;
@@ -47,6 +48,7 @@ public class BrandListener implements Listener {
         // --- 处理攻击方烙印 ---
         if (event.getDamager() instanceof Player attacker && event.getEntity() instanceof LivingEntity victim) {
             PlayerSession session = gameManager.getPlayerSession(attacker);
+            Game game = session.getGame();
             if (session != null) {
                 if ((event.getEntity() instanceof Player victimer)){
                     if (isTeammate(attacker, victimer)){
@@ -54,17 +56,24 @@ public class BrandListener implements Listener {
                     }
                 }
                 // 1. 自适应五级
-                if (session.hasBrand(BrandType.ADAPTIVE_5.id) && session.isBrandReady(BrandType.ADAPTIVE_5.id)) {
-                    double maxHp = attacker.getAttribute(Attribute.MAX_HEALTH).getValue();
-                    if (attacker.getHealth() / maxHp >= 0.8) {
-                        if (random.nextDouble() <= 0.1) {
-                            event.setDamage(event.getDamage() * 1.5);
-                            session.setBrandCooldown(BrandType.ADAPTIVE_5.id, BrandType.ADAPTIVE_5.maxCooldown);
+                if (session.hasBrand(BrandType.ADAPTIVE_5.id) ) {
+                    double maxHp = victim.getAttribute(Attribute.MAX_HEALTH).getValue();
+                    if (victim.getHealth() / maxHp >= 0.8) {
+                            event.setDamage(event.getDamage() * 1.2);
                             attacker.sendMessage("§c[NightMare] 触发了 自适应五级！伤害提升！");
-                        }
                     }
                 }
-                // 2. 致盲术 (BLIND_STRIKE)
+                //2. 狂怒之火 (FURIOUS_FIRE)
+                        if (session != null && session.hasBrand(BrandType.FURIOUS_FIRE.id)) {
+                            double maxHealth = victim.getAttribute(Attribute.MAX_HEALTH).getValue();
+                            double currentHealth = victim.getHealth();
+                            if (currentHealth / maxHealth < 0.30) {
+                                event.setDamage(event.getDamage() * 1.20);
+                                attacker.playSound(attacker.getLocation(), org.bukkit.Sound.ENTITY_BLAZE_HURT, 1.0f, 2.0f);
+                                attacker.sendMessage("§c[狂怒之火] §7触发额外伤害！");
+                            }
+                        }
+                // 3. 致盲术 (BLIND_STRIKE)
                 if (session.hasBrand(BrandType.BLIND_STRIKE.id) && session.isBrandReady(BrandType.BLIND_STRIKE.id)) {
                     if (random.nextDouble() <= 0.15) { // 15% 概率
                         victim.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 40, 0));
@@ -73,7 +82,7 @@ public class BrandListener implements Listener {
                         attacker.playSound(attacker.getLocation(), org.bukkit.Sound.ENTITY_ILLUSIONER_MIRROR_MOVE, 1f, 1f);
                     }
                 }
-            // 3. 奔雷怒吼 (THUNDER_ROAR)
+            // 4. 奔雷怒吼 (THUNDER_ROAR)
                 if (session.hasBrand(BrandType.THUNDER_ROAR.id) && session.isBrandReady(BrandType.THUNDER_ROAR.id)) {
                     if (random.nextDouble() <= 0.10) { // 10% 概率
                         victim.getWorld().strikeLightningEffect(victim.getLocation());
@@ -186,11 +195,9 @@ public class BrandListener implements Listener {
         else if (event.getDamager() instanceof Player attacker) {
             PlayerSession attackerSession = gameManager.getPlayerSession(attacker);
             if (attackerSession != null && attackerSession.hasBrand(BrandType.ASSASSINATION.id)&& attackerSession.isBrandReady(BrandType.ASSASSINATION.id)) {
-                // 判定是否为“跳劈”(暴击)：玩家不在地面，且正在下落 (FallDistance > 0)，且没在水里
                 boolean isCrit = !attacker.isOnGround() && attacker.getFallDistance() > 0.0f
                         && !attacker.isInWater() && !attacker.hasPotionEffect(PotionEffectType.BLINDNESS);
-                if (isCrit && Math.random() <= 0.08) { // 5% 的极小概率
-                    // 设置双倍伤害
+                if (isCrit && Math.random() <= 0.08) {
                     event.setDamage(event.getDamage() * 2);
                     attackerSession.setBrandCooldown(BrandType.ASSASSINATION.id, BrandType.ASSASSINATION.maxCooldown);
                     attacker.sendMessage("§4[烙印] 致命刺杀！造成双倍暴击伤害！");
@@ -219,22 +226,17 @@ public class BrandListener implements Listener {
     public void onUseSelector(PlayerInteractEvent event) {
         ItemStack item = event.getItem();
         if (item != null && item.getType() == Material.NETHER_STAR) {
-            // 打开 GUI
             brandGUI.open(event.getPlayer());
         }
     }
-    // 监听放置方块事件 (白羊)
     @EventHandler
     public void onBlockPlace(BlockPlaceEvent event) {
         Player player = event.getPlayer();
         PlayerSession session = gameManager.getPlayerSession(player);
         if (session == null) return;
-
-        // 检查是不是放的羊毛
         if (event.getBlockPlaced().getType().name().endsWith("_WOOL")) {
             if (session.hasBrand(BrandType.ARIES.id)) {
-                if (random.nextDouble() <= 0.10) { // 10%概率返还
-                    // 延迟 1 tick 给予，防止与原版物品消耗冲突
+                if (random.nextDouble() <= 0.10) {
                     org.bukkit.Bukkit.getScheduler().runTaskLater(jdd.nightMare.NightMare.getInstance(), () -> {
                         player.getInventory().addItem(new ItemStack(event.getBlockPlaced().getType(), 1));
                         player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_ITEM_PICKUP, 0.5f, 1.5f);

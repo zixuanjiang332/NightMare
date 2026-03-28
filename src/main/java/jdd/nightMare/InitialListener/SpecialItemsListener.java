@@ -556,16 +556,11 @@ public class SpecialItemsListener implements Listener {
         }
     }
 
-    /**
-     * 回城卷轴：传送回队伍出生点
-     */
     private void teleportToTeamSpawn(Player player) {
         PlayerSession session = gameManager.getPlayerSession(player);
         if (session != null && session.getGame() != null) {
-            // 请根据你的 GameTeam 类的方法修改获取队伍 SpawnLocation 的方法
             Location teamSpawn = session.getGame().getTeamSpawnLocations().get(session.getGame().getTeam(player));
             if (teamSpawn != null) {
-                // 播放一个传送音效和粒子
                 player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1f, 1f);
                 player.teleport(teamSpawn);
                 player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1f, 1f);

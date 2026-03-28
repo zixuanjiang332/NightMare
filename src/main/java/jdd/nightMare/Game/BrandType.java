@@ -1,6 +1,6 @@
 package jdd.nightMare.Game;
 public enum BrandType {
-    ADAPTIVE_5("ADAPTIVE_5", "§c自适应五级", "§7血量高于80%时, 攻击有10%概率造成150%伤害", 80),
+    ADAPTIVE_5("ADAPTIVE_5", "§c自适应五级", "§7敌人血量高于80%时, 攻击造成120%伤害", 0),
     CORRUPTION_5("CORRUPTION_5", "§5腐败三级", "§7死亡时给予周围敌人凋零2(5秒)", 200),
     TNT_SUPPLY("TNT_SUPPLY", "§4TNT", "§7开局90秒后获得 1 个 TNT", 0),
     DEFENDER("DEFENDER", "§e保卫者", "§7开局90秒后获得 8 个木板", 0),
@@ -20,7 +20,8 @@ public enum BrandType {
     WAR_STOMP("WAR_STOMP", "§4战争践踏", "§7击杀敌人后获得力量1增益(5s)", 60),
     ASSASSINATION("ASSASSINATION", "§8刺杀", "§7跳劈(暴击)时有极小概率造成双倍伤害", 60),
     CLOUD_PIERCING_ARROW("CLOUD_PIERCING_ARROW", "§b穿云箭", "§7开局90秒后获得 1把耐久三点的弓和 4根箭", 0),
-    TONGUE_OF_FIRE("TONGUE_OF_FIRE", "§c火舌", "§7开局90秒后获得 力量I药水(10s) 和 1个火焰弹", 0);
+    TONGUE_OF_FIRE("TONGUE_OF_FIRE", "§c火舌", "§7开局90秒后获得 力量I药水(10s) 和 1个火焰弹", 0),
+    FURIOUS_FIRE("FURIOUS_FIRE", "§c狂怒之火", "§7对生命值低于30%的敌人造成额外20%伤害", 0);
     public final String id;
     public final String displayName;
     public final String description;

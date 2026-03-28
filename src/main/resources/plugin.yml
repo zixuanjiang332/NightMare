@@ -22,5 +22,8 @@ commands:
   wait:
     description: 延长等待时间
     usage: /wait
+  shuaxing:
+    description: 刷新地图
+    usage: /shuaxing
 softdepend:
   - PlaceholderAPI

@@ -32,24 +32,18 @@ public class GameMap {
         YamlConfiguration config = MapConfig.getMapConfig();
         ConfigurationSection mapSection = config.getConfigurationSection(this.worldName);
         if (mapSection == null) return;
-
-        // --- 1. 读取并放置商店村民 ---
         ConfigurationSection shopSection = mapSection.getConfigurationSection("team-shop-locations");
         if (shopSection != null) {
             for (String team : shopSection.getKeys(false)) {
                 List<Double> coords = shopSection.getDoubleList(team);
                 if (coords.size() >= 3) {
-                    // 生成村民的坐标
                     Location loc = new Location(bukkitWorld, coords.get(0), coords.get(1), coords.get(2));
-                    // 在世界中生成村民
                     Villager villager = bukkitWorld.spawn(loc, Villager.class);
-                    // 设置村民属性 (无AI, 无敌, 静音, 不会因为玩家走远而消失)
                     villager.setAI(false);
                     villager.setInvulnerable(true);
                     villager.setSilent(true);
                     villager.setRemoveWhenFarAway(false);
-                    villager.setCollidable(false); // 防止被玩家推来推去
-                    // 设置外观和名字 (可根据需求修改)
+                    villager.setCollidable(false);
                     villager.setProfession(Villager.Profession.ARMORER);
                     villager.customName(net.kyori.adventure.text.Component.text("§e" + team.toUpperCase() + " 商店"));
                     villager.setCustomNameVisible(true);

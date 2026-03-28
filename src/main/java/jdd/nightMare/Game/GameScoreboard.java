@@ -177,16 +177,12 @@ public class GameScoreboard {
         // 使用唯一的 ChatColor 作为 Entry，确保不会冲突
         ChatColor[] teamEntries = {ChatColor.RED, ChatColor.BLUE, ChatColor.YELLOW, ChatColor.GREEN};
         String teamID[] = {"red", "blue", "yellow", "green"};
-        GameStageTask stageTask = game.getGameStageTask(); // 获取你的计时任务实例
+        GameStageTask stageTask = game.getGameStageTask(); 
         Team killsTeam = getOrCreateTeam(scoreboard, "killsDisplay", ChatColor.RESET.toString() + ChatColor.WHITE.toString());
         killsTeam.prefix(Component.text("击杀数: ", NamedTextColor.GRAY));
-
-        // 初始化击杀数
-        int kills = gameManager.getPlayerSession( player).getKills(); // 需确保你 game 类里有这个方法
+        int kills = gameManager.getPlayerSession( player).getKills();
         killsTeam.suffix(Component.text(kills, NamedTextColor.GREEN));
-
         objective.getScore(ChatColor.RESET.toString() + ChatColor.WHITE.toString()).setScore(6);
-        // --- 1. 更新阶段和倒计时 (顶部 Score 15) ---
         Team phaseTeam = getOrCreateTeam(scoreboard, "phaseDisplay", ChatColor.LIGHT_PURPLE.toString());
         String timeStr = formatTime(stageTask.getSecondsRemaining());
         phaseTeam.prefix(Component.text("阶段: ", NamedTextColor.GRAY));
@@ -194,18 +190,13 @@ public class GameScoreboard {
         objective.getScore(ChatColor.LIGHT_PURPLE.toString()).setScore(15);
         for (int i = 0; i < 4; i++) {
             String teamKey = teamNames[i].toLowerCase() + "_status";
-            // 1. 注册或获取计分板 Team
             Team t = scoreboard.getTeam(teamKey);
             if (t == null) t = scoreboard.registerNewTeam(teamKey);
             t.setOption(Team.Option.COLLISION_RULE, Team.OptionStatus.NEVER);
             String entry = teamEntries[i].toString();
             t.addEntry(entry);
-
-            // 2. 设置前缀 (例如: "§c红队: ")
             t.prefix(Component.text(teamNames[i] + ": ", teamColors[i]));
-
             GameTeam gameTeam = game.getTeamByColor(teamID[i]);
-
             if (gameTeam != null) {
                 if (gameTeam.isBedAlive()) {
                     t.suffix(Component.text(" ✔", NamedTextColor.GREEN));
