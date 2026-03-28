@@ -116,8 +116,6 @@ public class GameListeners implements Listener {
     @EventHandler
     public void onVillagerClick(PlayerInteractEntityEvent event) {
         Entity entity = event.getRightClicked();
-
-        // 判断是否为商店村民（这里假设你有某种方式标记村民，例如名字或 Metadata）
         if (entity.getType() == EntityType.VILLAGER) {
             event.setCancelled(true);
             Player player = event.getPlayer();
@@ -130,28 +128,22 @@ public class GameListeners implements Listener {
         String title = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
                 .serialize(event.getView().title());
         if (!title.contains("商店")) return;
-
         Inventory clickedInventory = event.getClickedInventory();
         if (clickedInventory == null) return;
-
         ItemStack clicked = event.getCurrentItem();
         Player player = (Player) event.getWhoClicked();
-
         if (clickedInventory.equals(event.getView().getTopInventory())) {
             event.setCancelled(true);
             if (clicked == null || clicked.getType() == Material.AIR) return;
-
-            // 【关键修复】只有点击了最上面的导航栏（槽位 0 到 8），才执行分类切换逻辑
             if (event.getRawSlot() >= 0 && event.getRawSlot() <= 8) {
                 for (ShopCategory cat : ShopCategory.values()) {
-                    // 如果恰好点到了边框玻璃，这里也不会匹配上，直接略过
                     if (clicked.getType() == cat.getIcon()) {
                         gameManager.getShopGUI().open(player, cat);
                         return;
                     }
                 }
             }
-            gameManager.getShopGUI().handlePurchaseLogic(player, clicked);
+            gameManager.getShopGUI().handlePurchaseLogic(player, clicked, event.getClick().isShiftClick());
 
         } else {
             if (event.getClick().isShiftClick()) {
@@ -631,7 +623,7 @@ public class GameListeners implements Listener {
         event.blockList().removeIf(block -> {
             // 如果被炸的方块是床，或者不在玩家放置的列表里，就保护它（不让它被炸毁）
             boolean isBed = block.getType().name().endsWith("_BED");
-            boolean isGlass = block.getType().name().endsWith("_GLASS");
+            boolean isGlass = block.getType().name().contains("GLASS");
             boolean isPlayerPlaced = game.getPlacedBlocks().contains(block.getLocation());
             return isBed || !isPlayerPlaced||isGlass;
         });
@@ -751,6 +743,17 @@ public class GameListeners implements Listener {
             case "purple" -> NamedTextColor.DARK_PURPLE;
             default -> NamedTextColor.GRAY;
         };
+    }
+    @EventHandler(ignoreCancelled = true)
+    public void onBossDamage(EntityDamageByEntityEvent event) {
+        if (event.getDamager() instanceof WitherSkull skull && skull.getShooter() instanceof Wither wither) {
+            if (wither.hasMetadata("NightMareBoss")) {
+                event.setDamage(event.getDamage() * 0.8);
+            }
+        }
+        else if (event.getDamager() instanceof Wither wither && wither.hasMetadata("NightMareBoss")) {
+            event.setDamage(event.getDamage() * 0.7);
+        }
     }
 
     @EventHandler

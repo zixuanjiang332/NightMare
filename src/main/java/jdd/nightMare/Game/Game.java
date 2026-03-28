@@ -514,18 +514,6 @@ public class Game {
         for (Player player : playerList)
             player.showTitle(Title.title(title, subtitle));
     }
-    public void clearAllEnderChests(Set<Player> players) {
-        for (Player player : players) {
-            if (player != null && player.isOnline()) {
-                // 1. 清空末影箱容器内容
-                player.getEnderChest().clear();
-                if (player.getOpenInventory().getType() == org.bukkit.event.inventory.InventoryType.ENDER_CHEST) {
-                    player.closeInventory();
-                }
-            }
-        }
-    }
-
     public GameConfiguration getGameConfiguration() {
         return gameConfiguration;
     }
@@ -548,7 +536,7 @@ public class Game {
             case STARTED -> {
                 for (Player player : getInGamePlayers()){
                     player.getInventory().clear();
-                    clearAllEnderChests(getInGamePlayers());
+                    player.getEnderChest().clear();
                     if (getTeam(player)==null){
                         int minCount = gameConfiguration.getTeamSize();
                         GameTeam finalTeam = null;

@@ -158,46 +158,38 @@ public class BossManager {
     public void spawnMidBoss() {
         Location midLoc = game.getMap().getSpectatorLocation().clone().add(0, 0, 0);
         midLoc.getChunk().load();
-        // 生成凋零
         Wither wither = (Wither) midLoc.getWorld().spawnEntity(midLoc, EntityType.WITHER);
-        // 基础设置
+
         wither.setCustomName("§d§l噩梦主宰");
         wither.setCustomNameVisible(true);
-        wither.getAttribute(Attribute.MAX_HEALTH).setBaseValue(200.0);
+        wither.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH).setBaseValue(200.0);
         wither.setHealth(200.0);
-        wither.getAttribute(Attribute.MOVEMENT_SPEED).setBaseValue(0.0);
-        wither.getAttribute(Attribute.KNOCKBACK_RESISTANCE).setBaseValue(1.0);
+        wither.setAI(false);
         wither.setGravity(false);
-        // 标记为中岛 Boss
         wither.getPersistentDataContainer().set(BOSS_ROLE_KEY, PersistentDataType.STRING, "MID_BOSS");
+        wither.setMetadata("NightMareBoss", new org.bukkit.metadata.FixedMetadataValue(NightMare.getInstance(), "boss"));
         synchronized (activeBosses) {
             activeBosses.add(wither);
         }
-        Bukkit.broadcast(Component.text("§5§l[NightMare] §f床已自毁，中岛 Boss §d§l凋零 §f已降临！击败它获得全队增益！"));
+
+        Bukkit.broadcast(net.kyori.adventure.text.Component.text("§5§l[NightMare] §f床已自毁，中岛 Boss §d§l凋零 §f已降临！击败它获得全队增益！"));
         midLoc.getWorld().strikeLightningEffect(midLoc);
         new BukkitRunnable() {
+            int attackCooldown = 0;
             @Override
             public void run() {
                 if (wither.isDead() || !wither.isValid()) {
                     this.cancel();
                     return;
                 }
-                // 强制锁定坐标和朝向（可以根据玩家位置微调朝向，或者固定朝向）
-                wither.teleport(midLoc);
-            }
-        }.runTaskTimer(NightMare.getInstance(), 0L, 1L);
-        new BukkitRunnable() {
-            int attackCooldown = 0; // 手动计时器
-            @Override
-            public void run() {
-                if (wither == null || wither.isDead()) {
-                    this.cancel();
-                    return;
+                Player target = getNearestEnemyPlayer(wither, 30.0);
+                Location lookLoc = midLoc.clone();
+                if (target != null) {
+                    lookLoc.setDirection(target.getEyeLocation().toVector().subtract(lookLoc.toVector()));
                 }
-                // 2. 逻辑分频：每 20 tick (1秒) 寻找一次最近玩家并尝试攻击
+                wither.teleport(lookLoc);
                 attackCooldown++;
-                if (attackCooldown >= 160) {
-                    Player target = getNearestEnemyPlayer(wither, 20.0); // 搜索 30 格内
+                if (attackCooldown >= 40) {
                     if (target != null) {
                         launchWitherSkull(wither, target);
                     }
@@ -207,11 +199,11 @@ public class BossManager {
         }.runTaskTimer(NightMare.getInstance(), 0L, 1L);
     }
     private void launchWitherSkull(Wither source, Player target) {
-        Vector direction = target.getEyeLocation().toVector()
+        org.bukkit.util.Vector direction = target.getEyeLocation().toVector()
                 .subtract(source.getEyeLocation().toVector())
                 .normalize();
-        // 如果你想让它射得更准，可以用 launchProjectile
-        source.launchProjectile(WitherSkull.class, direction.multiply(1.2));
+        WitherSkull skull = source.launchProjectile(WitherSkull.class, direction.multiply(1.2));
+        skull.setMetadata("NightMareBoss", new org.bukkit.metadata.FixedMetadataValue(NightMare.getInstance(), "boss"));
         source.getWorld().playSound(source.getLocation(), Sound.ENTITY_WITHER_SHOOT, 1f, 1f);
     }
     private ItemStack getColoredArmor(Material material, Color color) {

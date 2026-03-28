@@ -191,7 +191,7 @@ public class BossDeathListener implements Listener {
                 Enchantment.PROJECTILE_PROTECTION,
                 Enchantment.POWER,           // 力量
                 Enchantment.FIRE_ASPECT,     // 火焰附加
-                Enchantment.SWEEPING_EDGE    // 横扫之刃
+                Enchantment.FLAME           //火矢
         ));
 
         // 2. 随机选择一个附魔
@@ -209,13 +209,17 @@ public class BossDeathListener implements Listener {
             enchantLevel = random.nextInt((maxLvl - minLvl) + 1) + minLvl;
         }
         if(selected == Enchantment.POWER){
-            enchantLevel = random.nextInt(1) + 1;
+            if (random.nextInt(5)<2)enchantLevel=2;
+            else enchantLevel=1;
+        }
+        if(selected == Enchantment.FLAME){
+            if (random.nextInt(5)<2)enchantLevel=2;
+            else enchantLevel=1;
         }
         meta.addStoredEnchant(selected, enchantLevel, true);
         book.setItemMeta(meta);
         return book;
     }
-
     /**
      * 【完善】 给队伍所有成员施加祝福
      */

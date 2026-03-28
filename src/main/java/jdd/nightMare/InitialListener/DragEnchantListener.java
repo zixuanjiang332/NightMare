@@ -18,9 +18,8 @@ public class DragEnchantListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) return;
-        ItemStack cursorItem = event.getCursor();   // 鼠标抓着的附魔书
-        ItemStack currentItem = event.getCurrentItem(); // 槽位里的目标物品
-        // 基础检查
+        ItemStack cursorItem = event.getCursor();
+        ItemStack currentItem = event.getCurrentItem();
         if (cursorItem == null || cursorItem.getType() != Material.ENCHANTED_BOOK) return;
         if (currentItem == null || currentItem.getType() == Material.AIR) return;
 
@@ -31,16 +30,11 @@ public class DragEnchantListener implements Listener {
 
         Map<Enchantment, Integer> enchants = bookMeta.getStoredEnchants();
         if (enchants.isEmpty()) return;
-
         boolean appliedAny = false;
-
         for (Map.Entry<Enchantment, Integer> entry : enchants.entrySet()) {
             Enchantment enchant = entry.getKey();
             int bookLevel = entry.getValue();
-
-            // 检查物品是否可以接受该附魔
             if (enchant.canEnchantItem(currentItem)) {
-                // 获取物品上已有的附魔等级（如果没有该附魔，则返回 0）
                 int currentLevel = targetMeta.getEnchantLevel(enchant);
                 int finalLevel = currentLevel;
                 if (currentLevel == 0 || bookLevel > currentLevel) {
@@ -55,7 +49,6 @@ public class DragEnchantListener implements Listener {
                 appliedAny = true;
             }
         }
-
         if (appliedAny) {
             event.setCancelled(true);
             currentItem.setItemMeta(targetMeta);

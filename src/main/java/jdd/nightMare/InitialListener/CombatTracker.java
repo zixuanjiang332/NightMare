@@ -1,5 +1,6 @@
 package jdd.nightMare.InitialListener;
 
+import jdd.nightMare.Game.Game;
 import jdd.nightMare.Game.GameManager;
 import jdd.nightMare.Game.PlayerSession;
 import jdd.nightMare.NightMare;
@@ -12,6 +13,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.metadata.FixedMetadataValue;
@@ -132,6 +134,36 @@ public class CombatTracker implements Listener {
             case "orange": return "§6"; // 金
             case "purple": return "§5"; // 紫
             default:       return "§7"; // 灰色
+        }
+    }
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onPlayerHurt(EntityDamageEvent event){
+        if (!(event.getEntity() instanceof Player player)) return;
+        if (!gameManager.hasActiveSession(player)) {
+            event.setCancelled(true);
+            return;
+        }
+        Game game = gameManager.getPlayerSession(player).getGame();
+        if (!game.isActive() || game.getSpectators().contains(player)){
+            event.setCancelled(true);
+            return;
+        }
+        if (event instanceof EntityDamageByEntityEvent edbeEvent) {
+            Player attacker = null;
+            if (edbeEvent.getDamager() instanceof Player p) {
+                attacker = p;
+            } else if (edbeEvent.getDamager() instanceof Projectile proj && proj.getShooter() instanceof Player p) {
+                attacker = p;
+            }
+            if (attacker != null) {
+                if (game.isSpectator(attacker) || game.getTeam(player) == game.getTeam(attacker)) {
+                    event.setCancelled(true);
+                } else {
+                    if (event.isCancelled()) {
+                        event.setCancelled(false);
+                    }
+                }
+            }
         }
     }
 }
