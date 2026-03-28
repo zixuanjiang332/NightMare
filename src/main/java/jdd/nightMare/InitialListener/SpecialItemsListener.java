@@ -60,17 +60,6 @@ public class SpecialItemsListener implements Listener {
         }
     }
     @EventHandler
-    public void onFireballExplode(EntityExplodeEvent event) {
-        // 拦截自定义火球的爆炸
-        if (event.getEntity() instanceof org.bukkit.entity.Fireball fireball && fireball.hasMetadata("custom_fireball")) {
-            Game game = gameManager.getGameFromWorld(event.getEntity().getWorld());
-            event.blockList().removeIf(block ->
-                    !game.getPlacedBlocks().contains(block.getLocation())
-            );
-        }
-    }
-
-    @EventHandler
     public void onFireballDamage(EntityDamageByEntityEvent event) {
         if (event.getDamager() instanceof org.bukkit.entity.Fireball fireball && fireball.hasMetadata("custom_fireball")) {
             if (event.getEntity() instanceof Player victim) {
@@ -417,7 +406,7 @@ public class SpecialItemsListener implements Listener {
                     }
                     Location currentLoc = egg.getLocation();
 
-                    if (currentLoc.distanceSquared(startLoc) > 900 || ticks > 60) {
+                    if (currentLoc.distanceSquared(startLoc) > 625 || ticks > 60) {
                         egg.remove();
                         this.cancel();
                         return;

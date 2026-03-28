@@ -676,7 +676,16 @@ public class Game {
     }
 
     public void teleportToTeamSpawnLocation(Player player){
-        player.teleport(teamSpawnLocations.get(getTeam(player)));
+        GameTeam team = getTeam(player);
+        if (team == null || !teamSpawnLocations.containsKey(team)) return;
+        Location spawnLoc = teamSpawnLocations.get(team).clone();
+        Location centerLoc = new Location(spawnLoc.getWorld(), 0, spawnLoc.getY(), 0);
+        double dx = centerLoc.getX() - spawnLoc.getX();
+        double dz = centerLoc.getZ() - spawnLoc.getZ();
+        float lookAtCenterYaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
+        spawnLoc.setYaw(lookAtCenterYaw);
+        spawnLoc.setPitch(0f);
+        player.teleport(spawnLoc);
     }
 
     public Set<Player> getSpectators(){

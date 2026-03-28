@@ -210,7 +210,6 @@ public class GameScoreboard {
                 if (gameTeam.isBedAlive()) {
                     t.suffix(Component.text(" ✔", NamedTextColor.GREEN));
                 } else {
-                    // 如果床没了但还有人，显示存活人数；如果没有人了，显示 ✘
                     int aliveCount = gameTeam.getAlivedPlayerCount();
                     if (aliveCount > 0) {
                         t.suffix(Component.text(" " + aliveCount, NamedTextColor.GOLD));
@@ -221,7 +220,6 @@ public class GameScoreboard {
             } else {
                 t.suffix(Component.text(" -", NamedTextColor.GRAY)); // 队伍不存在的情况
             }
-            // 4. 设置分值 (红队最高，绿队最低)
             objective.getScore(entry).setScore(11 - i);
         }
     }

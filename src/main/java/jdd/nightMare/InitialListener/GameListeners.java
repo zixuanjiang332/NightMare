@@ -619,11 +619,33 @@ public class GameListeners implements Listener {
     @EventHandler
     public void onEntityExplode(EntityExplodeEvent event) {
         Game game = gameManager.getGameFromWorld(event.getEntity().getWorld());
+        if (game == null) return;
+        Location origin = event.getLocation();
         event.blockList().removeIf(block -> {
-            boolean isBed = block.getType().name().endsWith("_BED");
-            boolean isGlass = block.getType().name().contains("GLASS");
+            String typeName = block.getType().name();
+            boolean isBed = typeName.endsWith("_BED");
+            boolean isGlass = typeName.contains("GLASS");
             boolean isPlayerPlaced = game.getPlacedBlocks().contains(block.getLocation());
-            return isBed || !isPlayerPlaced||isGlass;
+            if (isBed || !isPlayerPlaced || isGlass) {
+                return true;
+            }
+            Location target = block.getLocation().add(0.5, 0.5, 0.5);
+            org.bukkit.util.Vector direction = target.toVector().subtract(origin.toVector());
+            double distance = direction.length();
+            direction.normalize();
+            for (double d = 0; d < distance - 0.3; d += 0.3) {
+                Location stepLoc = origin.clone().add(direction.clone().multiply(d));
+                Block stepBlock = stepLoc.getBlock();
+                if (stepBlock.getType().isAir() || stepBlock.getLocation().equals(block.getLocation())) {
+                    continue;
+                }
+                boolean isStepGlass = stepBlock.getType().name().contains("GLASS");
+                boolean isStepPlayerPlaced = game.getPlacedBlocks().contains(stepBlock.getLocation());
+                if (isStepGlass || !isStepPlayerPlaced) {
+                    return true;
+                }
+            }
+            return false;
         });
     }
     @EventHandler

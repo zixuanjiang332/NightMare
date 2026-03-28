@@ -12,7 +12,6 @@ public class LevelsConfig {
 
     private static final File file = new File(NightMare.getInstance().getDataFolder(), "levels.yml");
     private static FileConfiguration config;
-
     public static void init(){
         if (!file.exists())
             NightMare.getInstance().saveResource("levels.yml", false);
