@@ -562,7 +562,7 @@ public class GameListeners implements Listener {
         Player player = event.getPlayer();
         item.setAmount(item.getAmount() - 1);
         TNTPrimed tnt = player.getWorld().spawn(player.getEyeLocation(), TNTPrimed.class);
-        tnt.setYield(2.0F);
+        tnt.setYield(4F);
         Vector throwVelocity = player.getLocation().getDirection().multiply(2.8);
         tnt.setVelocity(throwVelocity);
         tnt.setFuseTicks(15);
@@ -580,8 +580,8 @@ public class GameListeners implements Listener {
                 double distance = drag.length();
                 if (distance < 0.1) continue;
                 drag.normalize();
-                double power = 5 * (1 - (distance / radius));
-                drag.setY(drag.getY() + 0.35);
+                double power = 3 * (1 - (distance / radius));
+                drag.setY(drag.getY() + 0.15);
                 victim.setVelocity(drag.multiply(power));
                 victim.setMetadata("TNT_LAUNCHED", new FixedMetadataValue(NightMare.getInstance(), true));
                 new BukkitRunnable() {
@@ -607,6 +607,20 @@ public class GameListeners implements Listener {
         }
     }
     @EventHandler
+    public void onTNTDamagePlayer(EntityDamageByEntityEvent event) {
+        if (event.getEntity() instanceof Player target) {
+            Game game = gameManager.getPlayerSession( target).getGame();
+            if (game != null && game.getGameState() == GameState.STARTED) {
+                if (event.getDamager() instanceof org.bukkit.entity.TNTPrimed) {
+                    double currentDamage = event.getDamage();
+                    if (currentDamage > 4.0) {
+                        event.setDamage(12.0);
+                    }
+                }
+            }
+        }
+    }
+    @EventHandler
     public void onPlayerFallDamage(EntityDamageEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
         if (event.getCause() == EntityDamageEvent.DamageCause.FALL) {
@@ -620,7 +634,8 @@ public class GameListeners implements Listener {
     public void onEntityExplode(EntityExplodeEvent event) {
         Game game = gameManager.getGameFromWorld(event.getEntity().getWorld());
         if (game == null) return;
-        Location origin = event.getLocation();
+        Location origin = event.getLocation().clone().add(0, 0.5, 0);
+
         event.blockList().removeIf(block -> {
             String typeName = block.getType().name();
             boolean isBed = typeName.endsWith("_BED");
@@ -640,8 +655,8 @@ public class GameListeners implements Listener {
                     continue;
                 }
                 boolean isStepGlass = stepBlock.getType().name().contains("GLASS");
-                boolean isStepPlayerPlaced = game.getPlacedBlocks().contains(stepBlock.getLocation());
-                if (isStepGlass || !isStepPlayerPlaced) {
+
+                if (isStepGlass) {
                     return true;
                 }
             }
