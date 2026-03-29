@@ -34,7 +34,6 @@ public class GameScoreboard {
         String[] teams = {"red", "blue", "yellow", "green"};
 
         for (String teamName : teams) {
-            // 如果该计分板上还没有这个队，就注册一个
             Team team = board.getTeam(teamName);
             if (team == null) {
                 team = board.registerNewTeam(teamName);
@@ -117,18 +116,12 @@ public class GameScoreboard {
     }
     private void syncExistingPlayersToBoard(Player newPlayer) {
         for (Player onlinePlayer : game.getInGamePlayers()) {
-            // 1. 先确保获取到该玩家的队伍对象
             GameTeam teamObj = game.getTeam(onlinePlayer);
-
-            // 2. 必须进行判空检查！如果玩家还没分队，直接跳过
             if (teamObj == null) {
                 continue;
             }
-            // 3. 安全获取队伍名称
             String teamName = teamObj.getTeamName();
             if (teamName == null) continue;
-
-            // 4. 获取计分板中的 Team 容器并同步
             Team team = newPlayer.getScoreboard().getTeam(teamName);
             if (team != null) {
                 team.addEntry(onlinePlayer.getName());
@@ -174,7 +167,6 @@ public class GameScoreboard {
         scoreboard.getTeam("playerCount").unregister();
         String[] teamNames = {"红队", "蓝队", "黄队", "绿队"};
         NamedTextColor[] teamColors = {NamedTextColor.RED, NamedTextColor.BLUE, NamedTextColor.YELLOW, NamedTextColor.GREEN};
-        // 使用唯一的 ChatColor 作为 Entry，确保不会冲突
         ChatColor[] teamEntries = {ChatColor.RED, ChatColor.BLUE, ChatColor.YELLOW, ChatColor.GREEN};
         String teamID[] = {"red", "blue", "yellow", "green"};
         GameStageTask stageTask = game.getGameStageTask(); 
@@ -228,9 +220,6 @@ public class GameScoreboard {
         return String.format("%02d:%02d", seconds / 60, seconds % 60);
     }
 
-    /**
-     * 安全获取或注册 Team 的辅助方法
-     */
     private Team getOrCreateTeam(Scoreboard s, String name, String entry) {
         Team t = s.getTeam(name);
         if (t == null) t = s.registerNewTeam(name);
