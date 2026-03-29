@@ -3,7 +3,7 @@ game-config:
     ==: jdd.nightMare.Game.GameConfiguration
     max-teams: 4
     min-teams: 2
-    team-size: 5
+    team-size: 50
     xp-per-kill: 20
     xp-per-win: 20
     map-ids:

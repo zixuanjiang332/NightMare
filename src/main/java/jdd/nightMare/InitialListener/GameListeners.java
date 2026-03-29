@@ -602,7 +602,7 @@ public class GameListeners implements Listener {
                             this.cancel();
                         }
                     }
-                }.runTaskTimer(NightMare.getInstance(), 10L, 5L); // 延迟 0.5 秒后开始，每 5 ticks(0.25秒) 检查一次
+                }.runTaskTimer(NightMare.getInstance(), 10L, 5L);
             }
         }
     }

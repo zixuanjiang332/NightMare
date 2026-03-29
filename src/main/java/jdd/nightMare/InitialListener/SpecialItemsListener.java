@@ -504,10 +504,10 @@ public class SpecialItemsListener implements Listener {
             int ticks = 0;
             @Override
             public void run() {
-                if (ticks > 100) { // 5秒后消失
+                if (ticks > 150) { // 7.5秒后消失
                     for (Location loc : tBlocks) {
                         if (loc.getBlock().getType() == mat) loc.getBlock().setType(Material.AIR);
-                        globalTrampolineBlocks.remove(loc); // 移出保护池
+                        globalTrampolineBlocks.remove(loc);
                     }
                     this.cancel();
                     return;

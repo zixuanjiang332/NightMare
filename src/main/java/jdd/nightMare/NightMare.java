@@ -52,6 +52,8 @@ public final class NightMare extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new DragEnchantListener(), this);
         getServer().getPluginManager().registerEvents(new BossDeathListener(gameManager), this);
         BrandGUI  brandGUI = new BrandGUI(gameManager);
+        getServer().getPluginManager().registerEvents(new CustomBowListener(this), this);
+        getServer().getPluginManager().registerEvents(new MeleeBloodListener(this), this);
         getServer().getPluginManager().registerEvents(new SpecialItemsListener(gameManager), this);
         getServer().getPluginManager().registerEvents(brandGUI, this);
         getServer().getPluginManager().registerEvents(new BrandListener(gameManager,brandGUI), this);
