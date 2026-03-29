@@ -223,7 +223,6 @@ public class Game {
         ItemMeta swordMeta = woodenSword.getItemMeta();
         if (swordMeta != null) {
             swordMeta.setUnbreakable(true); // 设置无法破坏
-            // 隐藏“无法破坏”等标签，让界面更整洁
             swordMeta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_UNBREAKABLE);
             woodenSword.setItemMeta(swordMeta);
         }

@@ -41,9 +41,6 @@ public class CombatTracker implements Listener {
         killer.playSound(killer.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.5f);
     }
 
-    /**
-     * 第一部分：记录伤害来源
-     */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerDamage(EntityDamageByEntityEvent event) {
         if (!(event.getEntity() instanceof Player victim)) return;
@@ -77,9 +74,6 @@ public class CombatTracker implements Listener {
         }
     }
 
-    /**
-     * 第二部分：接管死亡判定
-     */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerDeath(PlayerDeathEvent event) {
         Player victim = event.getEntity();
@@ -125,7 +119,6 @@ public class CombatTracker implements Listener {
         return colorCode + player.getName();
     }
     private String getChatColorCode(String teamName) {
-        // 使用 switch 处理，注意这里匹配的是你 Team 对象里定义的 teamName
         switch (teamName.toLowerCase()) {
             case "red":    return "§c"; // 浅红
             case "blue":   return "§9"; // 浅蓝
